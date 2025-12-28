@@ -44,6 +44,25 @@ Please read **[DESIGN.md](DESIGN.md)** before opening issues or suggesting featu
 
 ## Repository layout
 
+async-bulkhead/
+├── bulkhead-core/ # Core async bulkhead implementation (in progress)
+├── bulkhead-benchmarks/ # Benchmarks (planned)
+├── DESIGN.md # Semantics, guarantees, non-goals
+├── README.md
+
+---
+
+## Non-goals (v0.x)
+
+To keep the core primitive small and correct, the following are intentionally out of scope:
+
+- Reactive framework integrations (Reactor, RxJava, etc.)
+- Adaptive or auto-tuned concurrency limits
+- Priority or weighted queues
+- Per-tenant or distributed bulkheads
+- Circuit breakers, retries, or fallback policies
+- Executing tasks on an internal thread pool
+
 ---
 
 ## Build requirements
