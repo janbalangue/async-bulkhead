@@ -2,157 +2,142 @@
 
 Thanks for your interest in contributing.
 
-This project is intentionally **small, opinionated, and design-driven**.
-Contributions are welcome, but correctness and clarity take priority over feature breadth.
-
-Please read this document before opening issues or pull requests.
+This project is intentionally **small, opinionated, and design-driven**. Contributions are welcome,
+but correctness and explicit semantics take priority over feature breadth.
 
 ---
 
-## Project Philosophy
+## Start with the design
 
-This library aims to provide a **single, correct async bulkhead primitive**.
-
-We prioritize:
-1. Correctness under concurrency
-2. Explicit semantics and guarantees
-3. Predictable behavior under overload
-4. Production trust
-
-We deliberately avoid:
-- feature creep
-- premature generalization
-- supporting every async framework
-
----
-
-## Start with the Design
-
-Before proposing changes, **read [DESIGN.md](DESIGN.md)**.
+Before opening an issue or PR, read **[DESIGN.md](DESIGN.md)**.
 
 DESIGN.md defines:
-- core semantics
-- guarantees
-- non-goals
-- failure behavior
+- core semantics and guarantees
+- overload behavior
+- non-goals for v0.x
 
-Suggestions that conflict with documented non-goals may be declined, even if technically feasible.
+Suggestions that conflict with documented non-goals may be declined.
 
 ---
 
-## What Contributions Are Welcome
+## What contributions are welcome
 
 ### ✅ Bug reports
-Especially those involving:
+Especially around:
 - race conditions
 - permit leaks
 - cancellation behavior
-- incorrect queue or timeout semantics
+- queue/timeout semantics
 
 Please include:
 - minimal reproduction
 - expected vs actual behavior
-- Java version and runtime details
-
----
+- Java version (target is Java 17)
 
 ### ✅ Tests
 Tests that:
 - expose edge cases
-- demonstrate correctness
+- prove semantics
 - prevent regressions
 
 are highly valued.
 
----
-
 ### ✅ Documentation improvements
-Clarifications to:
-- semantics
-- guarantees
-- failure modes
-- tuning guidance
-
-are always welcome.
+Clarifications to semantics, guarantees, failure modes, and tuning guidance are welcome.
 
 ---
 
-### ⚠️ Feature requests (limited)
-Feature requests should:
-- clearly explain the production problem being solved
-- fit within the project’s stated goals
-- avoid expanding the core primitive unnecessarily
+## Out of scope (v0.x)
 
-Large or speculative features may be deferred or declined.
-
----
-
-## What Is Out of Scope (v0.x)
-
-The following are currently out of scope:
+To keep the core primitive small and correct, the following are out of scope initially:
 - Reactive framework integrations (Reactor, RxJava, etc.)
-- Adaptive or auto-tuned concurrency
-- Priority or weighted queues
+- Priority or weighted scheduling
+- Adaptive or auto-tuned limits
 - Per-tenant or distributed bulkheads
-- Circuit breakers, retries, or fallback logic
+- Circuit breakers, retries, or fallback policies
 
 Requests in these areas may be closed with reference to DESIGN.md.
 
 ---
 
-## Pull Request Guidelines
+## Pull request guidelines
 
 - Keep changes focused and minimal
 - Avoid unrelated refactors
 - Include tests for behavior changes
-- Preserve existing semantics unless explicitly discussed
+- Preserve documented semantics unless explicitly discussed
 - Explain *why* a change is needed, not just *what* changed
 
-Pull requests that change public semantics without prior discussion may be declined.
+PRs that change public semantics without prior discussion may be declined.
 
 ---
 
-## API Stability
+## API stability
 
-This project is **pre-1.0**.
-
+This project is **pre-1.0**:
 - APIs may change
-- semantics are documented and tested
-- breaking changes will be noted in the changelog
-
-Do not rely on undocumented behavior.
+- semantics should remain explicit and test-backed
+- breaking changes will be documented in the changelog
 
 ---
 
-## Communication Style
+## Communication style
 
 Be respectful and constructive.
 
-We welcome disagreement about design choices, but discussions should focus on:
+We value feedback focused on:
 - correctness
-- production behavior
 - failure modes
+- production behavior
 
-Not on:
-- naming preferences
-- hypothetical future use cases
+We de-prioritize:
+- naming debates
+- speculative future use cases
 - general-purpose abstractions
 
 See [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
+CHANGELOG.md (tightened)
+markdown
+Copy code
+# Changelog
+
+All notable, user-visible changes to runtime behavior and public APIs
+will be documented in this file.
+
+Until version `1.0.0`, all releases are considered **pre-stable** and may
+introduce breaking changes. Such changes will be documented clearly.
 
 ---
 
-## Maintainer Discretion
+## [Unreleased]
 
-Maintainers may:
-- close issues that are out of scope
-- decline pull requests that add unnecessary complexity
-- prioritize changes based on project direction
-
-This is not personal — it’s how the project stays focused.
+### Added
+- Defined core semantics, guarantees, and non-goals for the async bulkhead
 
 ---
 
-## Thank You
+## [0.1.0] — TBD
 
-Thoughtful feedback and careful contributions help make this library reliable and trustworthy.
+### Added
+- Async bulkhead core implementation
+- Concurrency limit enforcing a maximum number of in-flight async tasks
+- Fast rejection when capacity is exhausted
+- Metrics listener interface for observing bulkhead behavior
+- Tests enforcing documented concurrency and overload semantics
+
+---
+
+## [0.2.0] — TBD
+
+### Added
+- Bounded FIFO queue for waiting async tasks
+- Cancellation handling for queued tasks
+- Fairness guarantees for queued task execution (best-effort)
+
+---
+
+## [0.3.0] — TBD
+
+### Added
+- Queue wait timeouts to bound pre-execution latency under load
+- Explicit exception for queue wait timeout failures

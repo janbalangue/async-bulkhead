@@ -1,52 +1,57 @@
 # Async Bulkhead (Java)
 
-A small, opinionated **async bulkhead** for Java that protects services from overload
-by **bounding concurrent work, bounding waiting work, and enforcing queue wait timeouts**.
+⚠️ **Early-stage, design-first project**
 
-> Semaphores limit concurrency.  
-> This library defines **overload behavior**.
+This repository is building a small, opinionated **async bulkhead** for Java with explicit, tested
+semantics around overload behavior (bounded concurrency, bounded waiting, queue wait timeouts, and observability).
 
----
-
-## Why this exists
-
-In production systems, overload usually fails like this:
-
-- concurrency spikes
-- queues grow silently
-- latency explodes
-- everything times out at once
-
-Most teams try to fix this with `Semaphore`, ad-hoc queues, or thread blocking.
-That solves *concurrency*, but not **backpressure, latency protection, or observability**.
-
-This library provides a **single, correct primitive** for async overload control.
+There is no production-ready release yet.
 
 ---
 
-## What this library does
+## Goals
 
-✅ Limits **in-flight async work**  
-✅ Bounds **waiting work** with a FIFO queue  
-✅ Fails fast when saturated  
-✅ Enforces **queue wait timeouts** to protect tail latency  
-✅ Exposes **metrics hooks** for production visibility
+The core primitive is intended to help services remain stable under load by providing:
 
-❌ It does **not** execute tasks on its own threads  
-❌ It does **not** try to be a full resilience framework
+- **Concurrency limiting** (max in-flight async operations)
+- **Bounded waiting** (bounded queue)
+- **Fail-fast saturation behavior** (explicit rejection)
+- **Latency protection** (queue wait timeouts)
+- **Metrics hooks** (integration-friendly)
+
+This is intentionally **not** a full resilience framework.
 
 ---
 
-## Quickstart
+## Current status
 
-```java
-AsyncBulkhead bulkhead =
-    AsyncBulkhead.builder()
-        .maxConcurrent(50)
-        .maxQueue(200)
-        .maxQueueWait(Duration.ofMillis(100))
-        .listener(metricsListener)
-        .build();
+- ✅ Multi-module structure in place (Maven)
+- ✅ Semantics, guarantees, and non-goals documented
+- 🚧 Core implementation in progress
+- 🚧 APIs subject to change (pre-1.0)
 
-CompletableFuture<Response> future =
-    bulkhead.submit(() -> httpClient.callAsync(request));
+If you need a ready-to-use library, check back later.
+
+---
+
+## Design-first approach
+
+All behavior, guarantees, and non-goals are defined **before** implementation.
+
+Please read **[DESIGN.md](DESIGN.md)** before opening issues or suggesting features.
+
+---
+
+## Repository layout
+
+---
+
+## Build requirements
+
+- **Java 17** (target)
+- Maven 3.x
+
+Basic build (once code exists):
+
+```bash
+mvn -q verify

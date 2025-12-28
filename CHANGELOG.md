@@ -39,4 +39,4 @@ introduce breaking changes. Such changes will be documented clearly.
 
 ### Added
 - Queue wait timeouts to bound pre-execution latency under load
-- Explicit exception for queue wait timeout
+- Explicit exception for queue wait timeout failures

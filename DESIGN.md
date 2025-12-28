@@ -2,38 +2,37 @@
 
 ## 1. Goal
 
-The goal of this library is to provide a **small, correct, async bulkhead primitive**
-for Java applications.
+Provide a **small, correct, opinionated async bulkhead primitive** for Java that helps services
+remain stable under overload.
 
-Specifically, it:
-- bounds concurrent async work (in-flight)
-- bounds waiting work (queue)
-- fails fast under overload
-- protects latency via queue wait timeouts
-- exposes production-grade metrics hooks
+Specifically, it aims to:
+- bound concurrent async work (in-flight)
+- bound waiting work (queue)
+- define explicit saturation behavior (fail fast)
+- protect tail latency via queue wait timeouts
+- expose integration-friendly metrics hooks
 
-This library is intentionally **opinionated** and **minimal**.
+This project targets **Java 17**.
 
 ---
 
 ## 2. Non-Goals (v0.x)
 
-The following are explicitly out of scope for the initial versions:
+To keep the core primitive small and correct, the following are out of scope initially:
 
 - Reactive framework integrations (Reactor, RxJava, etc.)
-- Priority queues or weighted scheduling
-- Adaptive or auto-tuned concurrency limits
-- Per-tenant or per-key bulkheads
+- Priority or weighted scheduling
+- Adaptive or auto-tuned limits
+- Per-tenant / per-key bulkheads
 - Distributed coordination
-- Circuit breakers or retries
-
-These may be explored later, but correctness of the core primitive comes first.
+- Circuit breakers, retries, or fallback policies
+- Executing tasks on an internal thread pool
 
 ---
 
 ## 3. Public API Model
 
-The primary API is submission-based:
+The primary API is submission-based and async-first:
 
 ```java
 <T> CompletableFuture<T> submit(
