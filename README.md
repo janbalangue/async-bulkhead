@@ -1,76 +1,51 @@
 # Async Bulkhead (Java)
 
-⚠️ **Early-stage, design-first project**
+⚠️ **Early-stage, design-first project (pre-1.0)**
 
-This repository is building a small, opinionated **async bulkhead** for Java with explicit, tested
-semantics around overload behavior (bounded concurrency, bounded waiting, queue wait timeouts, and observability).
+This repository provides a small, opinionated **async bulkhead** for Java with
+explicit, test-backed semantics around overload behavior.
 
-There is no production-ready release yet.
+The goal is to make overload **bounded, visible, and predictable**.
 
 ---
 
-## Goals
+## What this is
 
-The core primitive is intended to help services remain stable under load by providing:
+An **async bulkhead** that:
 
-- **Concurrency limiting** (max in-flight async operations)
-- **Bounded waiting** (bounded queue)
-- **Fail-fast saturation behavior** (explicit rejection)
-- **Latency protection** (queue wait timeouts)
-- **Metrics hooks** (integration-friendly)
+- limits the number of **in-flight async tasks**
+- **fails fast** when capacity is exhausted
+- never starts work it cannot admit
+- exposes explicit rejection semantics
 
 This is intentionally **not** a full resilience framework.
 
 ---
 
-## Current status
+## What this is not
 
-- ✅ Multi-module structure in place (Maven)
-- ✅ Semantics, guarantees, and non-goals documented
-- 🚧 Core implementation in progress
-- 🚧 APIs subject to change (pre-1.0)
+Out of scope for v0.x:
 
-If you need a ready-to-use library, check back later.
-
----
-
-## Design-first approach
-
-All behavior, guarantees, and non-goals are defined **before** implementation.
-
-Please read **[DESIGN.md](DESIGN.md)** before opening issues or suggesting features.
-
----
-
-## Repository layout
-
-async-bulkhead/
-├── bulkhead-core/ # Core async bulkhead implementation (in progress)
-├── bulkhead-benchmarks/ # Benchmarks (planned)
-├── DESIGN.md # Semantics, guarantees, non-goals
-├── README.md
-
----
-
-## Non-goals (v0.x)
-
-To keep the core primitive small and correct, the following are intentionally out of scope:
-
-- Reactive framework integrations (Reactor, RxJava, etc.)
-- Adaptive or auto-tuned concurrency limits
-- Priority or weighted queues
+- Reactive framework integrations (Reactor, RxJava)
+- Priority or weighted scheduling
+- Adaptive or auto-tuned limits
 - Per-tenant or distributed bulkheads
-- Circuit breakers, retries, or fallback policies
-- Executing tasks on an internal thread pool
+- Circuit breakers, retries, or fallbacks
+- Owning or managing a thread pool
 
 ---
 
-## Build requirements
+## Requirements
 
-- **Java 17** (target)
+- **Java 17**
 - Maven 3.x
 
-Basic build (once code exists):
+---
 
-```bash
-mvn -q verify
+## Basic usage
+
+```java
+Bulkhead bulkhead = new Bulkhead(2);
+
+CompletionStage<String> result =
+    bulkhead.submit(() -> someAsyncOperation());

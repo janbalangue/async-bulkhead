@@ -3,38 +3,51 @@
 ## 1. Goal
 
 Provide a **small, correct, opinionated async bulkhead primitive** for Java that helps services
-remain stable under overload.
-
-Specifically, it aims to:
-- bound concurrent async work (in-flight)
-- bound waiting work (queue)
-- define explicit saturation behavior (fail fast)
-- protect tail latency via queue wait timeouts
-- expose integration-friendly metrics hooks
+remain stable under overload by bounding concurrent work.
 
 This project targets **Java 17**.
 
+The bulkhead is designed to be:
+- easy to integrate (no framework coupling)
+- explicit about overload behavior
+- test-driven with semantics locked by unit tests
+
 ---
 
-## 2. Non-Goals (v0.x)
+## 2. Scope (v0.1)
 
-To keep the core primitive small and correct, the following are out of scope initially:
+In v0.1, the bulkhead provides:
 
-- Reactive framework integrations (Reactor, RxJava, etc.)
+- **Concurrency limiting**: a maximum number of **in-flight** async tasks
+- **Fail-fast rejection** when saturated
+- **Explicit rejection signal** via `BulkheadRejectedException`
+- **Permit release** when tasks complete (success, failure, or cancellation)
+
+v0.1 intentionally does **not** include a waiting queue.
+
+---
+
+## 3. Non-goals (v0.x)
+
+To keep the primitive small and correct, the following are out of scope initially:
+
+- Reactive framework integrations (Reactor, RxJava)
 - Priority or weighted scheduling
 - Adaptive or auto-tuned limits
-- Per-tenant / per-key bulkheads
+- Per-tenant/per-key bulkheads
 - Distributed coordination
-- Circuit breakers, retries, or fallback policies
+- Circuit breakers, retries, fallback policies
 - Executing tasks on an internal thread pool
 
 ---
 
-## 3. Public API Model
+## 4. Public API Model
 
-The primary API is submission-based and async-first:
+The bulkhead is submission-based and async-first.
+
+Conceptual API:
 
 ```java
-<T> CompletableFuture<T> submit(
+<T> CompletionStage<T> submit(
   Supplier<? extends CompletionStage<T>> task
 );

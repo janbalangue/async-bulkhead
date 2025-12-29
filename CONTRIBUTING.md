@@ -42,6 +42,20 @@ Tests that:
 
 are highly valued.
 
+### Semantics-first tests
+
+This project treats unit tests as **semantic contracts**, not just functional checks.
+
+In particular, tests may assert guarantees such as:
+- fail-fast rejection under saturation
+- supplier non-invocation when submissions are rejected
+- explicit rejection signaling via `BulkheadRejectedException`
+- permit release on all completion paths
+
+Contributions that change public behavior must update tests and documentation
+(`DESIGN.md`, `CHANGELOG.md`) accordingly.
+
+
 ### ✅ Documentation improvements
 Clarifications to semantics, guarantees, failure modes, and tuning guidance are welcome.
 
