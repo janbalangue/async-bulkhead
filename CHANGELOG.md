@@ -14,28 +14,36 @@ breaking changes. Any such changes will be explicitly documented.
 
 ---
 
+## [0.1.4] - 2025-12-30
+
+### Fixed
+- Javadoc generation: corrected HTML issues and improved doc consistency.
+
+### Changed
+- Release build: attach Javadoc JARs and sources JARs for Maven Central.
+- Signing: moved GPG signing into the `release` profile to avoid local/dev build friction.
+
+### Documentation
+- Clarified overload/rejection semantics and usage examples.
+
 ## [0.1.3] – 2025-12-30
 
 ### Fixed
-- Corrected Maven Central publishing configuration (release deployment no longer depends on `distributionManagement`; no API or semantic changes).
+* Corrected Maven Central publishing configuration (release deployment no longer depends on `distributionManagement`; no API or semantic changes).
 
 ### Build
-- Added a tag-gated release workflow suitable for CI publishing.
+* Added a tag-gated release workflow suitable for CI publishing.
 
 ## [0.1.2] - 2025-12-30
 ### Fixed
 
-Maven Central publishing readiness fixes (GPG signing, metadata, staging)
+* Maven Central publishing readiness fixes (GPG signing, metadata, staging)
+* Parent / module POM alignment and groupId consistency
+* Test stability under high concurrency (permit release & rejection assertions)
 
-Parent / module POM alignment and groupId consistency
-
-Test stability under high concurrency (permit release & rejection assertions)
-
-Documentation
-
-Clarified async permit lifecycle and rejection semantics
-
-Minor README and formatting cleanups
+### Documentation
+* Clarified async permit lifecycle and rejection semantics
+* Minor README and formatting cleanups
 
 ## [0.1.1] - 2025-12-30
 
@@ -49,7 +57,7 @@ Minor README and formatting cleanups
 
 ### Added
 
-* Async bulkhead with a fixed upper bound on **in-flight async tasks**
+* Async bulkhead with a fixed upper bound on **in-flight async operations**
 * Fail-fast rejection when capacity is exhausted (no waiting or queuing)
 * Explicit rejection signaling via `BulkheadRejectedException`
 * Guaranteed **non-invocation of suppliers** for rejected submissions

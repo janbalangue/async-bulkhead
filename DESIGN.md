@@ -18,7 +18,7 @@ The bulkhead is designed to be:
 
 In v0.1, the bulkhead provides:
 
-- **Concurrency limiting**: a maximum number of **in-flight** async tasks
+- **Concurrency limiting**: a maximum number of **in-flight** async operations
     - A task is considered *in-flight* from the moment a submission is successfully
       admitted (a permit is acquired) until the **returned `CompletionStage`
       reaches a terminal state**.
@@ -28,7 +28,7 @@ In v0.1, the bulkhead provides:
       not at supplier invocation time nor at any intermediate execution stage.
 - **Fail-fast rejection** when saturated
 - **Explicit rejection signal** via `BulkheadRejectedException`
-- **Permit release** when tasks complete (success, failure, or cancellation)
+- **Permit release** when operations complete (success, failure, or cancellation)
 
 v0.1 intentionally does **not** include a waiting queue.
 
@@ -44,7 +44,7 @@ To keep the primitive small and correct, the following are out of scope initiall
 - Per-tenant/per-key bulkheads
 - Distributed coordination
 - Circuit breakers, retries, fallback policies
-- Executing tasks on an internal thread pool
+- Executing operations on an internal thread pool
 
 ---
 

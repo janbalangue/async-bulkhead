@@ -6,9 +6,9 @@ import java.util.concurrent.Semaphore;
 import java.util.function.Supplier;
 
 /**
- * An async bulkhead that limits the number of in-flight asynchronous tasks.
+ * An async bulkhead that limits the number of in-flight asynchronous operations.
  *
- * <p>The bulkhead enforces a fixed upper bound on concurrently in-flight tasks.
+ * <p>The bulkhead enforces a fixed upper bound on concurrently in-flight operations.
  * A task is considered <em>in-flight</em> from the moment a submission is
  * successfully admitted (a permit is acquired) until the {@link CompletionStage}
  * returned by {@link #submit(Supplier)} reaches a terminal state.</p>
@@ -26,7 +26,7 @@ import java.util.function.Supplier;
  *
  * <h2>Overload behavior</h2>
  *
- * <p>If the bulkhead is saturated (the number of in-flight tasks has reached
+ * <p>If the bulkhead is saturated (the number of in-flight operations has reached
  * the configured limit), submissions are <strong>rejected immediately</strong>
  * and fail fast with {@link BulkheadRejectedException}. Rejected submissions
  * <strong>do not invoke</strong> the supplied task.</p>
@@ -50,9 +50,9 @@ public final class Bulkhead {
     private final Semaphore permits;
 
     /**
-     * Creates a bulkhead with the given maximum number of in-flight tasks.
+     * Creates a bulkhead with the given maximum number of in-flight operations.
      *
-     * @param limit the maximum number of concurrently in-flight tasks; must be positive
+     * @param limit the maximum number of concurrently in-flight operations; must be positive
      * @throws IllegalArgumentException if {@code limit <= 0}
      */
     public Bulkhead(int limit) {
@@ -61,7 +61,7 @@ public final class Bulkhead {
         }
         this.permits = new Semaphore(limit);
     }
-    
+
     /**
      * Submits an async task to the bulkhead.
      *

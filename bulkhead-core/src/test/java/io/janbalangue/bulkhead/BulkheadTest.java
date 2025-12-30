@@ -242,11 +242,11 @@ public class BulkheadTest {
                         startBarrier.await();
 
                         CompletionStage<String> stage = bulkhead.submit(() -> {
-                            // Only runs for admitted tasks (supplier is not invoked for rejections)
+                            // Only runs for admitted operations (supplier is not invoked for rejections)
                             int now = inFlight.incrementAndGet();
                             maxObserved.accumulateAndGet(now, Math::max);
 
-                            // Keep tasks in-flight until the test completes them
+                            // Keep operations in-flight until the test completes them
                             CompletableFuture<String> gate = new CompletableFuture<>();
                             gates.add(gate);
 
@@ -272,11 +272,11 @@ public class BulkheadTest {
 
             assertTrue(infraErrors.isEmpty(), "infra errors: " + infraErrors);
 
-            // Then: never exceed limit, and with no completions exactly 'limit' tasks are admitted
+            // Then: never exceed limit, and with no completions exactly 'limit' operations are admitted
             assertTrue(maxObserved.get() <= limit, "accepted in-flight should never exceed limit");
-            assertEquals(limit, gates.size(), "with no completions, exactly 'limit' tasks should be admitted");
+            assertEquals(limit, gates.size(), "with no completions, exactly 'limit' operations should be admitted");
 
-            // When: release admitted tasks
+            // When: release admitted operations
             for (CompletableFuture<String> gate : gates) {
                 gate.complete("ok");
             }
@@ -303,8 +303,8 @@ public class BulkheadTest {
                 secondWaveGates.add(gate);
 
                 CompletionStage<String> accepted = bulkhead.submit(() -> gate);
-                // Meaningful acceptance check: accepted tasks should be in-flight (not immediately done)
-                assertFalse(accepted.toCompletableFuture().isDone(), "accepted tasks should be in-flight (not done)");
+                // Meaningful acceptance check: accepted operations should be in-flight (not immediately done)
+                assertFalse(accepted.toCompletableFuture().isDone(), "accepted operations should be in-flight (not done)");
             }
 
             CompletableFuture<String> shouldReject =
