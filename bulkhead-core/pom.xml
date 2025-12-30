@@ -8,12 +8,17 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>com.example</groupId>
+        <groupId>io.github.janbalangue</groupId>
         <artifactId>async-bulkhead</artifactId>
-        <version>0.0.1-SNAPSHOT</version>
+        <version>0.1.1</version>
+        <relativePath>../pom.xml</relativePath>
     </parent>
 
     <artifactId>bulkhead-core</artifactId>
+
+    <name>Async Bulkhead – Core</name>
+    <description>Core async bulkhead implementation.</description>
+
     <dependencies>
         <dependency>
             <groupId>org.junit.jupiter</groupId>

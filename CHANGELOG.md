@@ -14,6 +14,14 @@ breaking changes. Any such changes will be explicitly documented.
 
 ---
 
+## [0.1.1] - 2025-12-30
+
+### Fixed
+
+* Maven build and publishing metadata corrections
+* Minor test assertion compatibility fixes
+* Documentation formatting cleanup
+
 ## [0.1.0] — 2025-12-30
 
 ### Added

@@ -13,10 +13,10 @@ The goal is to make overload **bounded, visible, and predictable**.
 
 An **async bulkhead** that:
 
-- limits the number of **in-flight async tasks**
-- **fails fast** when capacity is exhausted
-- never starts work it cannot admit
-- exposes explicit rejection semantics
+* limits the number of **in-flight async tasks**
+* **fails fast** when capacity is exhausted
+* never starts work it cannot admit
+* exposes explicit rejection semantics
 
 A task is considered **in-flight** from the moment a submission is successfully
 admitted until the returned `CompletionStage` reaches a **terminal state**
@@ -28,19 +28,19 @@ admitted until the returned `CompletionStage` reaches a **terminal state**
 
 Out of scope for v0.x:
 
-- Reactive framework integrations (Reactor, RxJava)
-- Priority or weighted scheduling
-- Adaptive or auto-tuned limits
-- Per-tenant or distributed bulkheads
-- Circuit breakers, retries, or fallbacks
-- Owning or managing a thread pool
+* Reactive framework integrations (Reactor, RxJava)
+* Priority or weighted scheduling
+* Adaptive or auto-tuned limits
+* Per-tenant or distributed bulkheads
+* Circuit breakers, retries, or fallbacks
+* Owning or managing a thread pool
 
 ---
 
 ## Requirements
 
-- **Java 17**
-- Maven 3.x
+* **Java 17**
+* Maven 3.x
 
 ---
 
