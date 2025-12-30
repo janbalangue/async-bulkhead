@@ -18,7 +18,9 @@ An **async bulkhead** that:
 - never starts work it cannot admit
 - exposes explicit rejection semantics
 
-This is intentionally **not** a full resilience framework.
+A task is considered **in-flight** from the moment a submission is successfully
+admitted until the returned `CompletionStage` reaches a **terminal state**
+(successful completion, exceptional completion, or cancellation).
 
 ---
 
@@ -49,3 +51,4 @@ Bulkhead bulkhead = new Bulkhead(2);
 
 CompletionStage<String> result =
     bulkhead.submit(() -> someAsyncOperation());
+```

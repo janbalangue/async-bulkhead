@@ -1,41 +1,57 @@
 package io.janbalangue.bulkhead;
 
-import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Semaphore;
 import java.util.function.Supplier;
 
 /**
- * An async bulkhead that limits the number of concurrently in-flight asynchronous tasks.
- * <p>
- * The bulkhead is submission-based and async-first. It does not execute tasks itself;
- * it only controls whether work is allowed to start.
- * <p>
- * <strong>Core guarantees:</strong>
- * <ul>
- *   <li>A maximum number of in-flight tasks is enforced.</li>
- *   <li>Submissions never block.</li>
- *   <li>When saturated, submissions fail fast.</li>
- *   <li>If a submission is rejected, the task supplier is not invoked.</li>
- *   <li>Permits are released when tasks complete (success, failure, or cancellation).</li>
- * </ul>
- * <p>
- * This class is thread-safe.
+ * An async bulkhead that limits the number of in-flight asynchronous tasks.
  *
- * <p><strong>Note:</strong> This bulkhead does not provide queuing, retries, or fallback
- * behavior. Such features are intentionally out of scope for v0.x.
+ * <p>The bulkhead enforces a fixed upper bound on concurrently in-flight tasks.
+ * A task is considered <em>in-flight</em> from the moment a submission is
+ * successfully admitted (a permit is acquired) until the {@link CompletionStage}
+ * returned by {@link #submit(Supplier)} reaches a terminal state.</p>
+ *
+ * <p>A terminal state is defined as:
+ * <ul>
+ *   <li>successful completion</li>
+ *   <li>exceptional completion</li>
+ *   <li>cancellation</li>
+ * </ul>
+ * Permit release is observed strictly at terminal completion of the returned
+ * {@code CompletionStage}, not at supplier invocation time.</p>
+ *
+ * <h3>Overload behavior</h3>
+ *
+ * <p>If the bulkhead is saturated (the number of in-flight tasks has reached
+ * the configured limit), submissions are <strong>rejected immediately</strong>
+ * and fail fast with {@link BulkheadRejectedException}. Rejected submissions
+ * <strong>do not invoke</strong> the supplied task.</p>
+ *
+ * <p>This bulkhead does not provide queuing, waiting, or timeouts in v0.1.
+ * Rejection is the only overload behavior.</p>
+ *
+ * <h3>Failure semantics</h3>
+ *
+ * <p>Failures originating from the supplied task (for example, if the supplier
+ * throws or the returned stage completes exceptionally) are propagated
+ * unchanged to the caller. The bulkhead does not wrap or reinterpret task
+ * failures.</p>
+ *
+ * <p>This class is thread-safe.</p>
+ *
+ * @since 0.1.0
  */
 public final class Bulkhead {
 
     private final Semaphore permits;
-    private int limit;
 
     /**
-     * Creates a bulkhead that allows up to {@code limit} concurrent in-flight tasks.
+     * Creates a bulkhead with the given maximum number of in-flight tasks.
      *
      * @param limit the maximum number of concurrently in-flight tasks; must be positive
-     * @throws IllegalArgumentException if {@code limit} is less than or equal to zero
+     * @throws IllegalArgumentException if {@code limit <= 0}
      */
     public Bulkhead(int limit) {
         if (limit <= 0) {
@@ -44,50 +60,51 @@ public final class Bulkhead {
         this.permits = new Semaphore(limit);
     }
 
+    /**
+     * Submits an asynchronous task for execution if capacity is available.
+     *
+     * <p>If capacity is available, the task is admitted and a permit is acquired.
+     * The returned {@code CompletionStage} represents the in-flight task and
+     * holds the permit until it reaches a terminal state.</p>
+     *
+     * <p>If the bulkhead is saturated, this method fails fast with
+     * {@link BulkheadRejectedException} and the supplier is not invoked.</p>
+     *
+     * @param task a supplier producing an asynchronous task
+     * @param <T> the result type
+     * @return a {@code CompletionStage} representing the admitted task
+     * @throws BulkheadRejectedException if the bulkhead is saturated
+     * @throws NullPointerException if {@code task} is null
+     */
+    public <T> CompletionStage<T> submit(Supplier<? extends CompletionStage<T>> task) {
+        if (!permits.tryAcquire()) {
+            return failed(new BulkheadRejectedException("Bulkhead is saturated"));
+        }
+
+        final CompletionStage<T> stage;
+        try {
+            stage = task.get();
+            if (stage == null) {
+                throw new NullPointerException("Supplier returned null CompletionStage");
+            }
+        } catch (Throwable t) {
+            permits.release();
+            return failed(t); // <-- return failed stage, don't throw
+        }
+
+        try {
+            stage.whenComplete((r, e) -> permits.release());
+        } catch (Throwable t) {
+            permits.release();
+            return failed(t); // <-- return failed stage, don't throw
+        }
+
+        return stage;
+    }
+
     private static <T> CompletionStage<T> failed(Throwable t) {
         CompletableFuture<T> f = new CompletableFuture<>();
         f.completeExceptionally(t);
         return f;
-    }
-
-    /**
-     * Submits an asynchronous task to the bulkhead.
-     * <p>
-     * If capacity is available, the bulkhead acquires a permit and invokes the supplied
-     * task exactly once. The returned {@link CompletionStage} is observed, and the permit
-     * is released when that stage completes (normally, exceptionally, or via cancellation).
-     * <p>
-     * If the bulkhead is saturated at submission time:
-     * <ul>
-     *   <li>the submission is rejected immediately (fail-fast)</li>
-     *   <li>the supplier is <strong>not</strong> invoked</li>
-     *   <li>the returned stage completes exceptionally with {@link BulkheadRejectedException}</li>
-     * </ul>
-     *
-     * @param task a supplier producing a {@link CompletionStage} representing the task
-     * @param <T>  the task result type
-     * @return a {@link CompletionStage} representing the task result, or an exceptional
-     * stage if the submission is rejected
-     * @throws NullPointerException if {@code task} is null
-     */
-    public <T> CompletionStage<T> submit(Supplier<? extends CompletionStage<T>> task) {
-        Objects.requireNonNull(task, "task");
-
-        // fail fast when saturated
-        if (!permits.tryAcquire()) {
-            return failed(new BulkheadRejectedException("Bulkhead saturated"));
-        }
-
-        try {
-            // run task (supplier should produce a stage)
-            CompletionStage<T> stage = Objects.requireNonNull(task.get(), "task returned null");
-
-            // always release permit on completion
-            stage.whenComplete((value, error) -> permits.release());
-            return stage;
-        } catch (Throwable t) {
-            permits.release();
-            return failed(t);
-        }
     }
 }
