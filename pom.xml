@@ -9,11 +9,12 @@
 
     <groupId>io.github.janbalangue</groupId>
     <artifactId>async-bulkhead</artifactId>
-    <version>0.1.1</version>
+    <version>0.1.3</version>
     <packaging>pom</packaging>
 
     <name>Async Bulkhead</name>
     <description>Small, explicit async bulkhead for Java</description>
+    <url>https://github.com/janbalangue/async-bulkhead</url>
 
     <modules>
         <module>bulkhead-core</module>
@@ -23,6 +24,130 @@
         <maven.compiler.release>17</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.parameters>true</maven.compiler.parameters>
+        <gpg.keyname>25A84E2292878174</gpg.keyname>
+        <maven.javadoc.skip>true</maven.javadoc.skip>
     </properties>
+
+    <pluginRepositories>
+        <pluginRepository>
+            <id>central</id>
+            <name>Maven Central</name>
+            <url>https://repo.maven.apache.org/maven2</url>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </pluginRepository>
+    </pluginRepositories>
+
+    <profiles>
+        <profile>
+            <id>release</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <version>3.2.8</version>
+
+                        <configuration>
+                            <!-- IMPORTANT: read passphrase from env in CI -->
+                            <passphraseEnvName>MAVEN_GPG_PASSPHRASE</passphraseEnvName>
+
+                            <!-- IMPORTANT: stop gpg from trying to prompt -->
+                            <gpgArguments>
+                                <arg>--batch</arg>
+                                <arg>--no-tty</arg>
+                                <arg>--pinentry-mode</arg>
+                                <arg>loopback</arg>
+                            </gpgArguments>
+                        </configuration>
+
+                        <executions>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>sign</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <version>0.9.0</version>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <publishingServerId>central</publishingServerId>
+                            <!-- optional for CI -->
+                            <!-- <autoPublish>true</autoPublish> -->
+                            <!-- <waitUntil>published</waitUntil> -->
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+
+
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <id>janbalangue</id>
+            <name>Jan Balangue</name>
+            <url>https://github.com/janbalangue</url>
+        </developer>
+    </developers>
+
+    <scm>
+        <url>https://github.com/janbalangue/async-bulkhead</url>
+        <connection>scm:git:https://github.com/janbalangue/async-bulkhead.git</connection>
+        <developerConnection>scm:git:ssh://git@github.com:janbalangue/async-bulkhead.git</developerConnection>
+        <tag>v${project.version}</tag>
+    </scm>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <version>3.3.1</version>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>jar-no-fork</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>3.12.0</version>
+                <executions>
+                    <execution>
+                        <id>attach-javadocs</id>
+                        <inherited>false</inherited> <!-- don't run in parent -->
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+        </plugins>
+    </build>
 
 </project>

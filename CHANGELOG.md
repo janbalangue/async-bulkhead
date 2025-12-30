@@ -14,6 +14,29 @@ breaking changes. Any such changes will be explicitly documented.
 
 ---
 
+## [0.1.3] – 2025-12-30
+
+### Fixed
+- Corrected Maven Central publishing configuration (release deployment no longer depends on `distributionManagement`; no API or semantic changes).
+
+### Build
+- Added a tag-gated release workflow suitable for CI publishing.
+
+## [0.1.2] - 2025-12-30
+### Fixed
+
+Maven Central publishing readiness fixes (GPG signing, metadata, staging)
+
+Parent / module POM alignment and groupId consistency
+
+Test stability under high concurrency (permit release & rejection assertions)
+
+Documentation
+
+Clarified async permit lifecycle and rejection semantics
+
+Minor README and formatting cleanups
+
 ## [0.1.1] - 2025-12-30
 
 ### Fixed
