@@ -14,7 +14,20 @@ breaking changes. Any such changes will be explicitly documented.
 
 ---
 
+## [0.1.6] - 2025-12-31
+
+### Fixed
+- Maven Central publishing: released under a new version after 0.1.5 was cancelled/blocked upstream.
+
+### Documentation
+- No user-visible documentation or API changes since the attempted 0.1.5 release.
+
+---
+
 ## [0.1.5] - 2025-12-31
+
+### Notes
+- **Yanked / not published** (Maven Central deploy was cancelled; version cannot be reused).
 
 ### Fixed
 - Release workflow: corrected `GPG_PRIVATE_KEY` environment scoping so the key imports correctly in CI and signatures (`.asc`) are produced.
