@@ -52,34 +52,31 @@ jobs:
         run: |
           mkdir -p ~/.gnupg
           chmod 700 ~/.gnupg
-          
-          # Make gpg non-interactive and forbid tty usage
+
           cat > ~/.gnupg/gpg.conf <<'EOF'
           batch
           no-tty
           pinentry-mode loopback
           EOF
-          
-          # Allow loopback pinentry in agent
+
           cat > ~/.gnupg/gpg-agent.conf <<'EOF'
           allow-loopback-pinentry
           EOF
-          
+
           gpgconf --kill gpg-agent
           gpgconf --launch gpg-agent
 
       - name: Import GPG key
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
         run: |
           echo "${GPG_PRIVATE_KEY}" | gpg --batch --yes --import
           KEY_FPR="$(gpg --list-secret-keys --with-colons | awk -F: '/^fpr:/ {print $10; exit}')"
           echo "${KEY_FPR}:6:" | gpg --batch --import-ownertrust
-          env:
-            GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
 
       - name: Debug passphrase visibility
         run: |
           test -n "$MAVEN_GPG_PASSPHRASE" && echo "Passphrase is set" || (echo "Passphrase missing" && exit 1)
-
 
       - name: Release to Maven Central
         run: mvn -Prelease -B -e clean deploy

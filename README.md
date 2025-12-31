@@ -92,19 +92,19 @@ This makes overload **bounded, explicit, and observable**.
 Using this bulkhead does not make a system “safe by default.” Teams can still experience
 concurrency-related failures in the following cases:
 
-#### Work starts outside the bulkhead
+* ### Work starts outside the bulkhead
 The supplied task must be cold. If real work begins before submission
 (e.g. creating a “hot” CompletionStage), the bulkhead cannot prevent overload.
 
-* Rule of thumb: nothing expensive should happen before the bulkhead admits the task.
+Rule of thumb: nothing expensive should happen before the bulkhead admits the task.
 
-#### Fan-out inside admitted work
+* ### Fan-out inside admitted work
 Even with a bounded number of admitted operations, each task may spawn multiple concurrent
 sub-operations (database queries, HTTP calls, async continuations).
 
 Effective concurrency becomes **N × M**, which can still overwhelm downstream systems.
 
-#### The bulkhead protects the wrong boundary
+* ### The bulkhead protects the wrong boundary
 The bulkhead limits *admission*, not downstream resources. You can still exhaust:
 * database or HTTP connection pools
 * thread pools used by continuations
@@ -113,23 +113,23 @@ The bulkhead limits *admission*, not downstream resources. You can still exhaust
 
 Bulkheads should be placed at the **true contention boundary**, not arbitrarily.
 
-#### Cancellation and timeouts are not propagated
+* ### Cancellation and timeouts are not propagated
 If callers abandon requests but underlying work continues to run, load can accumulate
 outside the bulkhead’s visibility.
 
 Always combine bulkheads with **timeouts and cooperative cancellation**.
 
-#### Capacity is mis-sized
+* ### Capacity is mis-sized
 A bulkhead that allows too much concurrency can still cause saturation
 (timeouts, connection exhaustion, memory pressure).
 
 Start with conservative limits and size based on **latency distributions and downstream capacity**.
 
-#### Distributed concurrency is unbounded
+* ### Distributed concurrency is unbounded
 This bulkhead is **per process**. In a multi-instance deployment, total concurrency scales
 with the number of instances unless constrained elsewhere.
 
-#### Operations never complete
+* ### Operations never complete
 If a returned `CompletionStage` never reaches a terminal state due to a bug or hung call,
 capacity is never released and the bulkhead will eventually reject all submissions.
 

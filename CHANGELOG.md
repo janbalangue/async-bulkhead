@@ -14,6 +14,16 @@ breaking changes. Any such changes will be explicitly documented.
 
 ---
 
+## [0.1.5] - 2025-12-31
+
+### Fixed
+- Release workflow: corrected `GPG_PRIVATE_KEY` environment scoping so the key imports correctly in CI and signatures (`.asc`) are produced.
+- Release signing: ensured `.asc` signature artifacts are generated as part of the release build (via the `release` profile).
+
+### Build
+- Minor CI/release reliability improvements around non-interactive GPG usage.
+
+
 ## [0.1.4] - 2025-12-30
 
 ### Fixed
