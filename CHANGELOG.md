@@ -14,7 +14,39 @@ breaking changes. Any such changes will be explicitly documented.
 
 ---
 
+## Publication note
+
+Some early 0.1.x versions were affected by cancelled or incomplete Maven Central publication attempts.
+Because Maven Central does not allow reuse of version numbers once a deployment is cancelled or rejected,
+those versions should be considered **non-canonical**.
+
+The first fully published and supported release series begins with 0.1.7.
+
+## [0.1.7] - 2025-12-31
+
+### Fixed
+- Maven Central publishing reliability and version alignment.
+
+### Build
+- Release workflow stabilization; no runtime or semantic changes.
+
+### Documentation
+- No user-visible documentation or API changes.
+
+---
+
 ## [0.1.6] - 2025-12-31
+
+### Notes
+- **Not published** (Central Portal deployment cancelled; version cannot be reused).
+
+---
+
+## [0.1.5] - 2025-12-31
+
+### Notes
+- **Not published** (Central Portal deployment cancelled; version cannot be reused).
+
 
 ### Fixed
 - Maven Central publishing: released under a new version after 0.1.5 was cancelled/blocked upstream.
@@ -36,6 +68,7 @@ breaking changes. Any such changes will be explicitly documented.
 ### Build
 - Minor CI/release reliability improvements around non-interactive GPG usage.
 
+---
 
 ## [0.1.4] - 2025-12-30
 
@@ -49,6 +82,8 @@ breaking changes. Any such changes will be explicitly documented.
 ### Documentation
 - Clarified overload/rejection semantics and usage examples.
 
+---
+
 ## [0.1.3] – 2025-12-30
 
 ### Fixed
@@ -56,6 +91,8 @@ breaking changes. Any such changes will be explicitly documented.
 
 ### Build
 * Added a tag-gated release workflow suitable for CI publishing.
+
+---
 
 ## [0.1.2] - 2025-12-30
 ### Fixed
@@ -68,6 +105,8 @@ breaking changes. Any such changes will be explicitly documented.
 * Clarified async permit lifecycle and rejection semantics
 * Minor README and formatting cleanups
 
+---
+
 ## [0.1.1] - 2025-12-30
 
 ### Fixed
@@ -75,6 +114,8 @@ breaking changes. Any such changes will be explicitly documented.
 * Maven build and publishing metadata corrections
 * Minor test assertion compatibility fixes
 * Documentation formatting cleanup
+
+---
 
 ## [0.1.0] — 2025-12-30
 
