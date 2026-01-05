@@ -32,6 +32,16 @@ The first fully published and supported release series begins with 0.1.7.
 
 ---
 
+## [0.2.2] - 2026-01-05
+
+### Fixed
+- Release bookkeeping: publish missing changelog entries and align tagged release with published artifacts.
+
+### Notes
+- No runtime or API changes from 0.2.1.
+
+---
+
 ## [0.2.1] - 2026-01-05
 
 ### Documentation
@@ -40,7 +50,7 @@ The first fully published and supported release series begins with 0.1.7.
 
 ---
 
-## [0.2.0] - 2026-01-03
+## [0.2.0] - 2026-01-05
 
 ### Changed
 - Defined **cancellation** of the returned `CompletionStage` as a **terminal outcome** that releases capacity.

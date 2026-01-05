@@ -9,7 +9,7 @@
 
     <groupId>io.github.janbalangue</groupId>
     <artifactId>async-bulkhead</artifactId>
-    <version>0.2.1</version>
+    <version>0.2.2</version>
     <packaging>pom</packaging>
 
     <name>Async Bulkhead</name>
