@@ -2,9 +2,17 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ master ]
   pull_request:
-    branches: [ main ]
+    branches: [ master ]
+
+# Cancel superseded runs for the same PR/branch ref
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   build:
@@ -18,8 +26,11 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: "17"
           cache: maven
 
       - name: Build and test
-        run: mvn -B -q verify
+        shell: bash
+        run: |
+          set -euo pipefail
+          mvn -B -q verify

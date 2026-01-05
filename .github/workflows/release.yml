@@ -1,21 +1,23 @@
-name: Release
+name: CI
 
 on:
   push:
-    tags:
-      - "v*"
+    branches: [ master ]
+    tags: [ "v*" ]
+  pull_request:
+    branches: [ master ]
+
+# Cancel superseded runs for the same PR/branch ref
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
 
 jobs:
-  release:
-    if: startsWith(github.ref, 'refs/tags/v')
+  build:
     runs-on: ubuntu-latest
-    environment: release
-
-    env:
-      MAVEN_GPG_PASSPHRASE: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
 
     steps:
       - name: Checkout
@@ -25,60 +27,11 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: "17"
           cache: maven
 
-      - name: Verify Java
+      - name: Build and test
+        shell: bash
         run: |
-          echo "JAVA_HOME=$JAVA_HOME"
-          java -version
-
-      - name: Write Maven settings.xml
-        run: |
-          mkdir -p ~/.m2
-          cat > ~/.m2/settings.xml <<'EOF'
-          <settings>
-            <servers>
-              <server>
-                <id>central</id>
-                <username>${{ secrets.CENTRAL_USERNAME }}</username>
-                <password>${{ secrets.CENTRAL_PASSWORD }}</password>
-              </server>
-            </servers>
-          </settings>
-          EOF
-
-      - name: Configure GPG for non-interactive signing
-        run: |
-          mkdir -p ~/.gnupg
-          chmod 700 ~/.gnupg
-
-          cat > ~/.gnupg/gpg.conf <<'EOF'
-          batch
-          no-tty
-          pinentry-mode loopback
-          EOF
-
-          cat > ~/.gnupg/gpg-agent.conf <<'EOF'
-          allow-loopback-pinentry
-          EOF
-
-          gpgconf --kill gpg-agent
-          gpgconf --launch gpg-agent
-
-      - name: Import GPG key
-        env:
-          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
-        run: |
-          echo "${GPG_PRIVATE_KEY}" | gpg --batch --yes --import
-          KEY_FPR="$(gpg --list-secret-keys --with-colons | awk -F: '/^fpr:/ {print $10; exit}')"
-          echo "${KEY_FPR}:6:" | gpg --batch --import-ownertrust
-
-      - name: Debug passphrase visibility
-        run: |
-          test -n "$MAVEN_GPG_PASSPHRASE" && echo "Passphrase is set" || (echo "Passphrase missing" && exit 1)
-
-      - name: Release to Maven Central
-        run: mvn -Prelease -B -e clean deploy
-        env:
-          MAVEN_GPG_PASSPHRASE: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
+          set -euo pipefail
+          mvn -B -q verify

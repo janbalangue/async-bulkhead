@@ -93,6 +93,7 @@ This project is **pre-1.0**:
 - semantics should remain explicit and test-backed
 - breaking changes will be documented in the changelog
 
+> This project’s changelog documents **only user-visible changes to runtime behavior, public APIs, and operational guarantees**; internal refactors and implementation details are omitted unless they affect those guarantees.
 ---
 
 ## Communication style
