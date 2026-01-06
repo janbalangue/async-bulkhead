@@ -1,10 +1,10 @@
 # Changelog
 
-All notable, user-visible changes to runtime behavior and public APIs
-are documented in this file.
+All notable, user-visible changes to runtime behavior and public APIs are documented in this file.
 
-Until version `1.0.0`, all releases are **pre-stable** and may introduce
-breaking changes. Any such changes will be explicitly documented.
+This changelog documents only **user-visible changes** to runtime behavior, public APIs, and operational guarantees; internal refactors and implementation details are omitted unless they affect those guarantees.
+
+Until version `1.0.0`, all releases are **pre-stable** and may introduce breaking changes. Any such changes will be explicitly documented.
 
 ---
 
@@ -24,11 +24,21 @@ breaking changes. Any such changes will be explicitly documented.
 
 ## Publication note
 
-Some early 0.1.x versions were affected by cancelled or incomplete Maven Central publication attempts.
-Because Maven Central does not allow reuse of version numbers once a deployment is cancelled or rejected,
+Some early 0.1.x versions were affected by cancelled or incomplete Maven Central publication attempts. Because Maven Central does not allow reuse of version numbers once a deployment is cancelled or rejected,
 those versions should be considered **non-canonical**.
 
 The first fully published and supported release series begins with 0.1.7.
+
+---
+
+## [0.2.3] - 2026-01-05
+### Documentation
+- Rewrote README.md to align strictly with DESIGN.md semantics.
+- Clarified the core invariant: in-flight means admitted until terminal.
+- Explicitly documented fail-fast, unordered admission and terminal-based capacity release.
+- Added a concise comparison section explaining differences from framework-based and reactive bulkheads.
+- Tightened wording around cancellation, rejection, and capacity lifetime.
+- No runtime, API, or behavioral changes.
 
 ---
 
@@ -54,12 +64,9 @@ The first fully published and supported release series begins with 0.1.7.
 
 ### Changed
 - Defined **cancellation** of the returned `CompletionStage` as a **terminal outcome** that releases capacity.
-- Defined **permit lifetime** strictly from successful admission until the returned `CompletionStage` reaches a
-  terminal state (success, exceptional completion, or cancellation).
-- Guaranteed **exactly-once permit release** across all races between completion, exceptional completion, and
-  cancellation.
-- Tightened admission semantics: capacity is acquired **only at the moment of submission**; there is no deferred,
-  waiting, or speculative admission.
+- Defined **permit lifetime** strictly from successful admission until the returned `CompletionStage` reaches a terminal state (success, exceptional completion, or cancellation).
+- Guaranteed **exactly-once permit release** across all races between completion, exceptional completion, and cancellation.
+- Tightened admission semantics: capacity is acquired **only at the moment of submission**; there is no deferred, waiting, or speculative admission.
 
 ### Clarified
 - Formalized the core invariant: *in-flight means admitted until terminal*.
@@ -68,8 +75,7 @@ The first fully published and supported release series begins with 0.1.7.
 - Clarified that `BulkheadRejectedException` indicates **capacity exhausted and no work started**.
 
 ### Documentation
-- Significantly expanded and refined **DESIGN.md** to explicitly define semantics, invariants, races, cancellation
-  behavior, and non-goals.
+- Significantly expanded and refined **DESIGN.md** to explicitly define semantics, invariants, races, cancellation behavior, and non-goals.
 - Pruned and refocused **README.md** to serve as a high-level entry point aligned with v0.2 semantics.
 - Added explicit **production guidance and failure modes** documentation.
 
@@ -105,10 +111,8 @@ The first fully published and supported release series begins with 0.1.7.
 - **Yanked / not published** (Maven Central deploy was cancelled; version cannot be reused).
 
 ### Fixed
-- Release workflow: corrected `GPG_PRIVATE_KEY` environment scoping so the key imports correctly in CI and signatures
-  (`.asc`) are produced.
-- Release signing: ensured `.asc` signature artifacts are generated as part of the release build (via the `release`
-  profile).
+- Release workflow: corrected `GPG_PRIVATE_KEY` environment scoping so the key imports correctly in CI and signatures (`.asc`) are produced.
+- Release signing: ensured `.asc` signature artifacts are generated as part of the release build (via the `release` profile).
 
 ### Build
 - Minor CI/release reliability improvements around non-interactive GPG usage.
@@ -132,9 +136,7 @@ The first fully published and supported release series begins with 0.1.7.
 ## [0.1.3] – 2025-12-30
 
 ### Fixed
-- Corrected Maven Central publishing configuration (release deployment no longer depends on
-  `distributionManagement`; 
-  no API or semantic changes).
+- Corrected Maven Central publishing configuration (release deployment no longer depends on `distributionManagement`; no API or semantic changes).
 
 ### Build
 - Added a tag-gated release workflow suitable for CI publishing.
