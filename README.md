@@ -6,6 +6,8 @@ This repository provides a small, opinionated **async bulkhead** for Java with e
 
 The goal is to make overload **bounded, visible, and predictable**.
 
+> *This library does not prevent overload failures; it prevents overload from being silent.*
+
 ---
 
 ## Why another bulkhead?
@@ -33,10 +35,11 @@ There is no internal execution model.
 
 - Admission is **fail-fast** and **non-blocking**
 - Admission is **unordered** (no FIFO, no fairness guarantees)
-- An operation is considered *in-flight* from successful admission until its
-  returned `CompletionStage` reaches a **terminal state**
-  (success, failure, or cancellation)
-- Capacity is released **only** at terminal completion
+- An operation is considered *in-flight* from successful admission until its returned `CompletionStage` reaches a **terminal state** (success, failure, or cancellation).
+
+If terminal completion observation cannot be registered (for example, if
+callback registration throws), the submission fails and capacity is released
+immediately to avoid permit leaks.
 
 Under contention, concurrent submissions race for available capacity.
 If capacity is unavailable at the moment of submission, the operation is rejected.
@@ -49,6 +52,9 @@ An **async bulkhead** that:
 - limits the number of **in-flight async operations**
 - sheds load explicitly via rejection
 - exposes overload as a first-class signal
+
+Cancellation is treated as a first-class terminal outcome: capacity is released,
+but cancellation is not propagated to underlying work.
 
 ## What this is not
 
@@ -120,7 +126,7 @@ This bulkhead **never waits for capacity**.
 If capacity is unavailable at submission time:
 * the operation is rejected immediately
 * no work is started
-* rejection is surfaced synchronously as a failed `CompletionStage`
+* rejection is surfaced synchronously as a failed `CompletionStage`, not thrown
 
 There is:
 * no queue
@@ -141,7 +147,7 @@ Terminal states are strictly defined as:
 * exceptional completion
 * cancellation
 
-Capacity is released **only** when one of these states is observed.
+Capacity is released when one of these states is observed.
 
 This definition is documented, test-backed, and invariant under concurrency races.
 
@@ -155,6 +161,8 @@ If the returned `CompletionStage` is cancelled:
 * admission semantics remain unchanged
 
 The bulkhead does **not** propagate cancellation downstream; it only observes it to maintain correct admission accounting.
+
+> If you expect cancellation to stop work, do not use this library.
 
 ---
 
@@ -241,6 +249,7 @@ class Example {
       }
 
       Throwable cause =
+              // unwrap CompletionException if present
               (err instanceof CompletionException) ? err.getCause() : err;
 
       if (cause instanceof BulkheadRejectedException) {

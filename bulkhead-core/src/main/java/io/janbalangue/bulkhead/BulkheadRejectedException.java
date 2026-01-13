@@ -8,6 +8,9 @@ package io.janbalangue.bulkhead;
  *
  * <p>When this exception is observed, the associated task supplier was not invoked and
  * no user work was started.</p>
+ *
+ * <p>Rejection is a normal overload signal. Callers should treat it as load shedding
+ * and handle it explicitly (e.g., fast fail, fallback, degrade, or retry elsewhere).</p>
  */
 public final class BulkheadRejectedException extends RuntimeException {
 

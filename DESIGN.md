@@ -1,242 +1,312 @@
-# Async Bulkhead — Design & Semantics (v0.2.x)
-## 1. Goal
+# async-bulkhead — Design (v0.3.0)
 
-Provide a **small, correct, semantics-first async bulkhead** for Java that bounds
-the number of **in-flight asynchronous operations**.
+This document describes the *design goals, invariants, and semantics* of **async-bulkhead** as of **v0.3.0**. It is intentionally precise and opinionated. If something is not specified here, it is either a non-goal or explicitly undefined.
 
-The purpose of this bulkhead is to make overload **explicit, bounded, and visible**
-by enforcing **admission control**, not by hiding load through queuing or retries.
+The library exists to provide **hard, explicit concurrency bounds** for asynchronous systems without hiding overload, delaying failure, or conflating backpressure with timeouts.
 
-> Think of the bulkhead as a gate: admission is instantaneous, capacity is held until
-> terminal completion, and excess load is rejected immediately.
+---
 
-> See PRODUCTION.md for real-world usage patterns and failure modes.
+## 1. Core problem statement
 
-**Target**: Java 17
+Modern asynchronous systems rarely fail because individual operations are slow. They fail because **too much work is admitted at once**.
 
-**Scope**: Single-process, async-only admission control
+Common failure patterns include:
 
-## 2. Core design principles
+* fan-out amplification (1 request → N downstream async calls)
+* unbounded async submission
+* reliance on timeouts instead of admission control
 
-> **Design invariant**: *in-flight means admitted until terminal*. All other semantics
-> derive from this invariant.
+`async-bulkhead` addresses these failures by **rejecting work before it starts** once a fixed concurrency limit is reached.
 
-The bulkhead relies on the returned `CompletionStage` to allow terminal observation
-(e.g., via `whenComplete`). If that contract is violated, the bulkhead fails the
-submission and surfaces the error.
+Key premise:
 
-### 2.1 Admission, not execution
+> *If work has been admitted, it must be allowed to run to completion.*
 
-The bulkhead controls **whether an operation may start**.
+Everything else in this design follows from that premise.
 
-It does **not**:
-* execute operations
-* schedule work
-* manage threads
-* retry, delay, or buffer submissions
+---
 
-All execution concerns are owned by the caller.
+## 2. What a bulkhead is (and is not)
 
-### 2.2 Fail fast, never wait
+### A bulkhead *is*
 
-This bulkhead **never waits** for capacity.
+* a **concurrency admission gate**
+* a mechanism for **fail-fast overload signaling**
+* a way to make capacity constraints explicit and observable
 
-If capacity is unavailable at :
-* the submission is **rejected immediately**
-* no work is started
-* rejection is explicit and observable
+### A bulkhead is *not*
 
-There is no queue.
+* a timeout mechanism
+* a queue
+* a scheduler
+* a retry controller
+* a cancellation propagator
 
-### 2.3 Admission is not ordered
+If you want fairness, retries, prioritization, or work cancellation, those must be layered *above* the bulkhead.
 
-Admission is **opportunistic, not ordered**.
+---
 
-The bulkhead does not guarantee:
-* FIFO ordering
-* fairness across threads or callers
-* eventual admission after rejection
+## 3. Admission model
 
-Concurrent submissions race for available capacity.
-If capacity is unavailable at the moment `submit` is called, the operation is rejected.
+Admission is **binary and immediate**:
 
-Callers must not assume ordering or fairness.
+* If capacity is available, the supplier is invoked exactly once
+* If capacity is exhausted, the supplier is *not invoked* and the submission is rejected
 
-### 2.4 In-flight means “admitted until terminal”
+There is:
 
-An operation is considered **in-flight** from the moment it is successfully admitted
-(a permit is acquired) until the returned `CompletionStage` reaches a
-terminal state.
+* no waiting
+* no buffering
+* no reordering
 
-The returned `CompletionStage` is the sole authority for permit lifetime.
+Rejection is a *successful outcome* from the bulkhead’s perspective.
 
-## 3. Terminal states
+> *There is no guarantee of eventual admission under contention; repeated submissions may be rejected indefinitely.*
 
-Terminal states are strictly defined as:
-* successful completion
+---
+
+## 4. Supplier invocation rules
+
+A supplier passed to the bulkhead:
+
+* MUST NOT be invoked unless a permit is successfully acquired
+* MUST be invoked at most once
+* MUST be treated as potentially throwing
+
+If the supplier throws synchronously:
+
+* the permit is released
+* the returned stage completes exceptionally with the same throwable
+
+Supplier invocation is considered part of the admitted work.
+
+---
+
+## 5. In-flight definition
+
+An operation is considered **in-flight** from the moment it is admitted until it reaches a **terminal state**.
+
+Terminal states are:
+
+* normal completion
 * exceptional completion
 * cancellation
 
-Capacity is released **only** when one of these terminal states is observed.
+The bulkhead observes terminal signals **only to release capacity**. It does not reinterpret, transform, suppress, or delay them.
 
-Intermediate execution steps, continuations, or callbacks do not affect permit
-lifetime.
+---
 
-## 4. Public API model
+## 6. Cancellation semantics
 
-Conceptual API:
+Cancellation is treated as a **terminal signal** for capacity accounting purposes only.
+
+Specifically:
+
+* Cancelling the `CompletionStage` returned by the bulkhead releases the associated permit
+* Cancellation does **not** attempt to interrupt, stop, or cancel the underlying work
+* If the supplier itself returns a stage that is later cancelled, that cancellation is observed as terminal and releases capacity
+
+The bulkhead does not attempt to propagate cancellation *into* user code. Cancellation is an *observation*, not a control mechanism.
+
+This ensures that:
+
+* capacity is never leaked
+* admitted work is never forcefully terminated by the bulkhead
+
+> *Cancellation is equivalent to the caller abandoning interest in the result; it does not imply that underlying work has stopped.*
+
+---
+
+## 7. Failure and exception propagation
+
+The bulkhead does not reinterpret failures.
+
+* If the supplier throws, the throwable is propagated
+* If the returned stage completes exceptionally, that exception is propagated
+* Rejection is surfaced as a distinct, immediate signal
+
+All terminal signals are treated equivalently with respect to capacity release.
+
+---
+
+## 8. Listener semantics
+
+Bulkhead listeners exist to provide **observability**, not control.
+
+Listeners MAY be notified of:
+
+* successful admission
+* rejection
+* release of a permit with a terminal outcome
+
+The following guarantees apply:
+
+* Listener callbacks MUST NOT affect bulkhead semantics
+* Listener callbacks MAY be invoked concurrently
+* Listener callbacks MAY execute on arbitrary threads
+* Listener callbacks MUST be treated as best-effort
+
+Any exception thrown by a listener is intentionally ignored. Listener failure must not interfere with admission, execution, or release.
+
+Listeners are suitable for metrics, logging, and tracing only.
+
+---
+
+## 9. Determinism and invariants
+
+The bulkhead enforces the following invariants:
+
+* A permit is acquired **at most once** per submission
+* A permit is released **exactly once** per admitted operation
+* The supplier is never invoked without a permit
+* Rejected submissions never consume capacity
+
+Violating any of these invariants is considered a bug.
+
+> *Undocumented behavior, including snapshot timing and interleavings, must not be relied upon.*
+
+---
+
+## 10. Explicit non-goals
+
+The following are *intentionally* out of scope:
+
+* fairness or ordering guarantees
+* request prioritization
+* backpressure propagation
+* retries or hedging
+* adaptive or dynamic limits
+* cancellation of underlying work
+
+These concerns are better handled at higher layers, where more context is available.
+
+---
+
+## 11. Stability guarantees
+
+`async-bulkhead` is pre-1.0 software.
+
+* Semantic changes MAY occur between minor versions
+* Breaking changes will be documented clearly
+* Tests are treated as executable specifications
+
+> All documented semantics are enforced by deterministic concurrency tests.
+
+Users are encouraged to rely on documented behavior, not incidental implementation details.
+
+---
+
+## 12. Introspection snapshots
+
+`async-bulkhead` exposes a small set of **introspection methods** intended for diagnostics, logging, and coarse-grained monitoring:
+
+* `int limit()`
+* `int available()`
+* `int inFlight()`
+
+These methods return **best-effort snapshots** of internal state at the moment they are called.
+
+### Snapshot semantics
+
+* Snapshot values are **not linearizable** with respect to submission or completion.
+* Values may become stale immediately after being read due to concurrent activity.
+* They MUST NOT be used to predict admission outcomes or enforce external coordination logic.
+
+For example:
+
+* `available() > 0` does **not** guarantee that a subsequent submission will be admitted.
+* `inFlight()` may temporarily exceed expectations due to races between completion and observation.
+
+These methods exist to:
+
+* enrich logs and debug output
+* support coarse operational visibility
+* enable lightweight health reporting without introducing a metrics subsystem
+
+They are explicitly **not** a concurrency control mechanism.
+
+### ❌ Incorrect usage (anti-pattern)
+
+The following pattern is **incorrect** and must not be used:
+
 ```java
-<T> CompletionStage<T> submit(
-  Supplier<? extends CompletionStage<T>> operation
-);
+if (bulkhead.available() > 0) {
+bulkhead.submit(task);
+}
 ```
 
-The API is **submission-based** and **async-first**.
+This is invalid because `available()` is a **non-linearizable snapshot**.
+The value may become stale immediately after it is read due to concurrent submissions or completions.
 
-## 5. Submission semantics
+In particular:
 
-Submission is atomic and has exactly two outcomes:
+* `available() > 0` does not guarantee that a subsequent `submit(...)` call will be admitted.
+* Between the snapshot and the submission, capacity may already have been consumed by another thread.
+* Using snapshot values to “pre-check” admission reintroduces race conditions that the bulkhead is explicitly designed to avoid.
 
-### 5.1 Admitted
+Admission is decided only by `submit(...)` itself.
 
-* Capacity is available at submission time
-* A permit is acquired
-* The supplier is invoked exactly once
-* The returned `CompletionStage` governs permit release
+### ✅ Correct usage
 
-### 5.2 Rejected
+Always attempt submission directly and handle rejection explicitly:
 
-* Capacity is unavailable
-* No permit is acquired
-* The supplier is **not invoked**
-* A `BulkheadRejectedException` is returned synchronously as a failed stage
+```java
+CompletionStage<T> stage = bulkhead.submit(task);
 
-There is no intermediate or deferred state.
+stage.whenComplete((value, error) -> {
+if (error instanceof BulkheadRejectedException) {
+// explicit overload signal
+}
+});
 
-## 6. Supplier invocation guarantees
+```
 
-The bulkhead provides the following guarantees:
-* A supplier is invoked **at most once**
-* A supplier is invoked **only if admission succeeds**
-* A rejected submission **never invokes** the supplier
-* Supplier invocation occurs **after** permit acquisition
+Snapshot methods (`available()`, `inFlight()`, `limit()`) exist only for:
 
-Submitted operations **must be cold**.
-Any side effects occurring before admission are invalid usage.
+* diagnostics
+* logging
+* coarse operational visibility
 
-## 7. Permit lifecycle
+They must never be used for coordination, admission prediction, or control flow.
 
-Permit management is the **core correctness concern** of this bulkhead. All
-concurrency, cancellation, and race-handling logic exists to uphold a single
-invariant: **exactly one permit is released for every admitted operation, and
-only after a terminal signal is observed**.
+> **Any attempt to use introspection snapshots to predict or influence admission behavior is a misuse of the API.**
 
-### 7.1 Acquisition
+---
 
-* Permit acquisition happens synchronously during submission
-* Admission succeeds only at 
-* There is no reservation, waiting, or speculative acquisition
+## 13. Terminal classification (`TerminalKind`)
 
-## 7.2 Release
+Each admitted operation terminates exactly once and is classified into one of the following terminal kinds:
 
-A permit is released exactly once, when the returned `CompletionStage`
-reaches a terminal state.
+* `SUCCESS` — the supplier’s stage completed normally
+* `FAILURE` — the supplier’s stage completed exceptionally with a non-cancellation failure
+* `CANCELLED` — the operation was cancelled
 
-Permit release is:
-* deterministic
-* idempotent
-* independent of execution threads
+### Cancellation semantics
 
-## 7.3 Completion races
+An operation is classified as `CANCELLED` if either of the following occurs:
 
-In the presence of races between:
-* successful completion
-* exceptional completion
-* cancellation
+* the caller cancels the `CompletionStage` returned by `submit(...)`, or
+* the `CompletionStage` returned by the supplier completes with a `CancellationException`
 
-the bulkhead guarantees:
-* exactly one permit release
-* no permit leaks
-* no double release
+In both cases:
 
-The **first observed terminal signal wins**.
+* capacity is released exactly once
+* listeners observe a terminal event with `TerminalKind.CANCELLED`
+* cancellation is treated as a terminal outcome, not a failure
 
-## 7.4 Handler registration failure
+This classification exists to allow downstream systems to distinguish load shedding or caller abandonment from genuine execution failures.
 
-* If completion handler registration throws, the submission is treated as terminal
-  failure; the returned stage fails with that error; **capacity is released exactly once**.
-* This is rare, but it prevents leaks in pathological `CompletionStage` implementations.
+---
 
-Example snippet:
-> **Handler registration failure**: If attaching the terminal observer to the returned
-> `CompletionStage` throws (e.g., `whenComplete` fails), the bulkhead treats the 
-> submission as terminal failure: it releases capacity exactly once and returns a failed
-> stage to the caller.
+## 14. Observability contract reminder
 
-## 8. Cancellation semantics
+Both listeners and introspection snapshots are governed by the same guiding principles:
 
-Cancellation is a **first-class terminal outcome**.
+* They are **observational only**
+* They are **best-effort**
+* They MUST NOT affect bulkhead correctness or admission semantics
+* Exceptions thrown by observers are ignored
 
-If the returned `CompletionStage` is cancelled:
-* capacity is released
-* admission semantics remain unchanged
+This ensures that operational visibility can be added freely without compromising overload containment guarantees.
 
-The bulkhead does **not** propagate cancellation downstream; it only observes it
-to manage capacity.
-
-## 9. Rejection semantics
-
-Rejection is a **normal control signal**, not an exceptional failure. It indicates
-intentional load shedding under saturation and is expected to occur in healthy
-systems under bursty load.
-
-Rejection is explicit and synchronous.
-
-`BulkheadRejectedException` signals that:
-* capacity was exhausted
-* no work was started
-* the system is intentionally shedding load
-
-## 10. Thread-safety and concurrency guarantees
-
-* The bulkhead is thread-safe
-* Concurrent submissions are supported
-* All documented guarantees hold under high contention
-
-Correctness is enforced through deterministic concurrency tests.
-
-## 11. Non-goals (v0.x)
-
-The following are explicitly **out of scope** and will not be added in v0.x:
-* Queues or waiting admission
-* Timeouts, retries, or fallback policies
-* Reactive framework integrations
-* Thread pool ownership or scheduling
-* Adaptive or auto-tuned limits
-* Distributed or per-key bulkheads
-
-These concerns must be composed around this bulkhead.
-
-## 12. Intentional failure modes
-
-This bulkhead does not protect against:
-* work starting outside the bulkhead
-* fan-out inside admitted operations
-* downstream resource exhaustion
-* hung or never-completing operations
-* distributed concurrency amplification
-
-These are system-level concerns that must be addressed explicitly.
-
-## 13. Design intent summary
-
-This bulkhead is:
-* **Small** — minimal API, minimal behavior
-* **Explicit** — no hidden queues or retries
-* **Honest** — overload is visible
-* **Unordered** — admission is opportunistic
-* **Composable** — integrates with any async model
-* **Test-defined** — tests are the contract
-
-> This library intentionally optimizes for correctness and predictability over throughput
-> smoothing or fairness.
+> Operational usage guidance and failure modes are covered in PRODUCTION.md.

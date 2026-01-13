@@ -16,7 +16,7 @@ DESIGN.md defines:
 - overload behavior
 - non-goals for v0.x
 
-Suggestions that conflict with documented non-goals may be declined.
+Suggestions that conflict with documented non-goals will likely be declined.
 
 ---
 

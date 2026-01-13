@@ -1,5 +1,7 @@
 # Changelog
 
+> *Production users should start at ≥ 0.1.7.*
+
 All notable, user-visible changes to runtime behavior and public APIs are documented in this file.
 
 This changelog documents only **user-visible changes** to runtime behavior, public APIs, and operational guarantees; internal refactors and implementation details are omitted unless they affect those guarantees.
@@ -29,6 +31,39 @@ those versions should be considered **non-canonical**.
 
 The first fully published and supported release series begins with 0.1.7.
 
+---
+
+## [0.3.0] - 2026-01-13
+
+### Added
+- **Observability hooks** via `BulkheadListener`:
+  - `onAdmitted()` — invoked after permit acquisition and before supplier invocation
+  - `onRejected()` — invoked on fail-fast rejection
+  - `onReleased(TerminalKind kind, Throwable error)` — invoked exactly once per admitted operation.
+- `TerminalKind` enum to classify terminal outcomes as `SUCCESS`, `FAILURE`, or `CANCELLED`.
+- Lightweight **introspection methods**:
+  - `limit()` — configured concurrency limit
+  - `available()` — instantaneous available permits (advisory snapshot)
+  - `inFlight()` — instantaneous in-flight count derived from `limit - available` (advisory snapshot).
+
+### Changed
+- **Cancellation semantics are now explicit and user-visible**:
+  - cancelling the `CompletionStage` returned by `submit(...)` produces a *cancelled* stage
+  - cancellation releases capacity exactly once
+  - cancellation is **not** propagated to the underlying operation.
+- Listener callbacks are **best-effort and non-intrusive**:
+  - exceptions thrown by listeners are swallowed
+  - listener failures cannot affect admission, rejection, or permit-release semantics.
+
+### Fixed
+- Hardened permit accounting in edge cases:
+  - ensured exactly-once permit release across completion, exceptional completion, and cancellation races
+  - failures during terminal handler registration fail the submission and release capacity to prevent permit leaks.
+
+### Notes
+- Invariant violations in internal permit accounting continue to be surfaced as `IllegalStateException`.
+
+> *These indicate internal bugs and should never be observed in correct usage.*
 ---
 
 ## [0.2.3] - 2026-01-05

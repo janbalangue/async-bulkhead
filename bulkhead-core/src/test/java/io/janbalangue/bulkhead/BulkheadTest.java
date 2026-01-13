@@ -280,13 +280,16 @@ public class BulkheadTest {
             long rejected = 0;
             for (CompletableFuture<String> f : returned) {
                 try {
-                    f.join();
-                } catch (CompletionException ce) {
+                    f.get(5, TimeUnit.SECONDS);
+                } catch (TimeoutException te) {
+                    fail("returned stage did not complete within timeout. " +
+                            "gates=" + gates.size() + ", returned=" + returned.size() +
+                            ", maxObserved=" + maxObserved.get() + ", infraErrors=" + infraErrors, te);
+                } catch (ExecutionException ee) {
                     rejected++;
-
-                    Throwable cause = ce.getCause();
-                    assertNotNull(cause, "CompletionException should have a cause");
-                    assertInstanceOf(BulkheadRejectedException.class, cause, "expected BulkheadRejectedException but got: " + cause);
+                    Throwable cause = ee.getCause();
+                    assertNotNull(cause);
+                    assertInstanceOf(BulkheadRejectedException.class, cause);
                 }
             }
             assertEquals(threads - limit, rejected, "all extra submissions should fail fast");
@@ -375,7 +378,8 @@ public class BulkheadTest {
         @SuppressWarnings("resource")
         ExecutorService pool = Executors.newFixedThreadPool(2);
         try {
-            for (int i = 0; i < 5_000; i++) {
+            int iterations = Integer.getInteger("stress.iters", 5000);
+            for (int i = 0; i < iterations; i++) {
                 CompletableFuture<String> gate = new CompletableFuture<>();
                 CompletionStage<String> first = bulkhead.submit(() -> gate);
 
@@ -420,8 +424,6 @@ public class BulkheadTest {
         } finally {
             pool.shutdownNow();
         }
-
-
     }
 
     @Test
@@ -490,7 +492,7 @@ public class BulkheadTest {
             }
         }
 
-        Bulkhead bulkhead = new Bulkhead(1, new OverReportingSemaphore(1));
+        Bulkhead bulkhead = new Bulkhead(1, new OverReportingSemaphore(1), null);
 
         // When: we submit a normal operation that completes immediately
         CompletionStage<String> stage =
@@ -619,5 +621,194 @@ public class BulkheadTest {
         // cleanup
         admittedGate.complete("done");
         admitted.toCompletableFuture().join();
+    }
+
+    @Test
+    public void submitNullSupplierThrowsNullPointerException() {
+        Bulkhead bulkhead = new Bulkhead(1);
+        assertThrows(NullPointerException.class, () -> bulkhead.submit(null));
+    }
+
+    @Test
+    public void constructorRejectsNonPositiveLimit() {
+        assertThrows(IllegalArgumentException.class, () -> new Bulkhead(0));
+        assertThrows(IllegalArgumentException.class, () -> new Bulkhead(-1));
+    }
+
+    @Test
+    public void cancellationProducesCancelledStageAndJoinThrowsCancellationException() {
+        Bulkhead bulkhead = new Bulkhead(1);
+
+        CompletableFuture<String> gate = new CompletableFuture<>();
+        CompletableFuture<String> returned = bulkhead.submit(() -> gate).toCompletableFuture();
+
+        assertFalse(returned.isDone(), "should be admitted and in-flight");
+
+        assertTrue(returned.cancel(true), "cancellation should succeed");
+        assertTrue(returned.isCancelled(), "returned stage should be marked cancelled");
+        assertTrue(returned.isDone(), "cancelled stage should be terminal");
+
+        // Key contract: cancelled stage behaves as cancellation (not exceptional completion with CancellationException)
+        assertThrows(CancellationException.class, returned::join);
+
+        // Even if the underlying later completes, the returned stage stays cancelled
+        gate.complete("ok");
+        assertTrue(returned.isCancelled(), "returned stage must remain cancelled");
+        assertThrows(CancellationException.class, returned::join);
+
+        // Permit must be released after cancellation
+        CompletionStage<String> second = bulkhead.submit(() -> CompletableFuture.completedFuture("ok"));
+        assertEquals("ok", second.toCompletableFuture().join());
+    }
+
+    @Test
+    public void cancellingReturnedStageDoesNotPropagateCancellationToUnderlyingStage() {
+        Bulkhead bulkhead = new Bulkhead(1);
+
+        CompletableFuture<String> underlying = new CompletableFuture<>();
+        CompletableFuture<String> returned = bulkhead.submit(() -> underlying).toCompletableFuture();
+
+        assertTrue(returned.cancel(true), "cancellation should succeed");
+        assertTrue(returned.isCancelled(), "returned stage should be cancelled");
+
+        // Cancellation is not propagated to the supplied stage
+        assertFalse(underlying.isCancelled(), "underlying stage must not be cancelled");
+        assertFalse(underlying.isDone(), "underlying stage should still be incomplete");
+
+        // Underlying can still complete normally
+        underlying.complete("ok");
+        assertEquals("ok", underlying.join());
+
+        // Returned remains cancelled
+        assertTrue(returned.isCancelled());
+        assertThrows(CancellationException.class, returned::join);
+
+        // Permit released by cancelling returned stage
+        CompletionStage<String> next = bulkhead.submit(() -> CompletableFuture.completedFuture("next"));
+        assertEquals("next", next.toCompletableFuture().join());
+    }
+
+    @Test
+    public void listenerExceptionsAreSwallowedAndDoNotAffectAdmissionOrRelease() {
+        AtomicInteger admittedCalls = new AtomicInteger();
+        AtomicInteger rejectedCalls = new AtomicInteger();
+        AtomicInteger releasedCalls = new AtomicInteger();
+
+        BulkheadListener throwingListener = new BulkheadListener() {
+            @Override
+            public void onAdmitted() {
+                admittedCalls.incrementAndGet();
+                throw new RuntimeException("boom-admitted");
+            }
+
+            @Override
+            public void onRejected() {
+                rejectedCalls.incrementAndGet();
+                throw new RuntimeException("boom-rejected");
+            }
+
+            @Override
+            public void onReleased(TerminalKind kind, Throwable error) {
+                releasedCalls.incrementAndGet();
+                throw new RuntimeException("boom-released");
+            }
+        };
+
+        Bulkhead bulkhead = new Bulkhead(1, throwingListener);
+
+        // Admit one and hold it
+        CompletableFuture<String> gate = new CompletableFuture<>();
+        CompletableFuture<String> first = bulkhead.submit(() -> gate).toCompletableFuture();
+        assertFalse(first.isDone(), "should be admitted and in-flight");
+        assertEquals(1, admittedCalls.get(), "onAdmitted should have been called");
+
+        // Saturated => reject, but listener exception must not change semantics
+        CompletableFuture<String> rejected =
+                bulkhead.submit(() -> CompletableFuture.completedFuture("nope")).toCompletableFuture();
+
+        assertTrue(rejected.isCompletedExceptionally(), "should reject when saturated");
+        CompletionException ex = assertThrows(CompletionException.class, rejected::join);
+        assertInstanceOf(BulkheadRejectedException.class, ex.getCause());
+        assertEquals(1, rejectedCalls.get(), "onRejected should have been called");
+
+        // Release the first operation; listener exception must not prevent release
+        gate.complete("ok");
+        assertEquals("ok", first.join());
+        assertEquals(1, releasedCalls.get(), "onReleased should have been called exactly once");
+
+        // Permit is released: next submit should be admitted
+        CompletableFuture<String> gate2 = new CompletableFuture<>();
+        CompletableFuture<String> second = bulkhead.submit(() -> gate2).toCompletableFuture();
+        assertFalse(second.isDone(), "should be admitted after release despite listener exceptions");
+        assertEquals(2, admittedCalls.get(), "onAdmitted should be called again");
+
+        // cleanup
+        gate2.complete("done");
+        assertEquals("done", second.join());
+        assertEquals(2, releasedCalls.get(), "onReleased should be called for second op too");
+    }
+
+    @Test
+    public void listenerReceivesCorrectTerminalKindAndError() {
+        class Event {
+            final TerminalKind kind;
+            final Throwable error;
+
+            Event(TerminalKind kind, Throwable error) {
+                this.kind = kind;
+                this.error = error;
+            }
+        }
+
+        ConcurrentLinkedQueue<Event> events = new ConcurrentLinkedQueue<>();
+
+        BulkheadListener listener = new BulkheadListener() {
+            @Override
+            public void onReleased(TerminalKind kind, Throwable error) {
+                events.add(new Event(kind, error));
+            }
+        };
+
+        Bulkhead bulkhead = new Bulkhead(1, listener);
+
+        // SUCCESS
+        CompletionStage<String> ok = bulkhead.submit(() -> CompletableFuture.completedFuture("ok"));
+        assertEquals("ok", ok.toCompletableFuture().join());
+
+        Event e1 = events.poll();
+        assertNotNull(e1, "expected a release event for success");
+        assertEquals(TerminalKind.SUCCESS, e1.kind);
+        assertNull(e1.error, "success should have null error");
+
+        // FAILURE
+        RuntimeException boom = new RuntimeException("boom");
+        CompletionStage<String> fail = bulkhead.submit(() -> {
+            CompletableFuture<String> f = new CompletableFuture<>();
+            f.completeExceptionally(boom);
+            return f;
+        });
+
+        CompletionException ex = assertThrows(CompletionException.class, () -> fail.toCompletableFuture().join());
+        assertSame(boom, ex.getCause(), "operation failure should propagate unchanged");
+
+        Event e2 = events.poll();
+        assertNotNull(e2, "expected a release event for failure");
+        assertEquals(TerminalKind.FAILURE, e2.kind);
+        assertSame(boom, e2.error, "failure should pass through the same throwable");
+
+        // CANCELLED
+        CompletableFuture<String> gate = new CompletableFuture<>();
+        CompletableFuture<String> cancelled = bulkhead.submit(() -> gate).toCompletableFuture();
+
+        assertTrue(cancelled.cancel(true));
+        assertThrows(CancellationException.class, cancelled::join);
+
+        Event e3 = events.poll();
+        assertNotNull(e3, "expected a release event for cancellation");
+        assertEquals(TerminalKind.CANCELLED, e3.kind);
+        assertNull(e3.error, "cancelled should have null error");
+
+        // cleanup underlying
+        gate.complete("unused");
     }
 }

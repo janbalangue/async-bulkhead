@@ -37,6 +37,8 @@ indefinitely.
 
 > Production systems must not rely on fairness or ordering guarantees.
 
+> *Starvation is possible under sustained contention and is considered acceptable behavior.*
+
 ---
 
 ## 2. Ensure submitted work is *cold*
@@ -140,6 +142,10 @@ If an operation never completes, capacity is never released.
 Cancelling the `CompletionStage` returned by the bulkhead releases capacity,
 but it does **not** cancel or interrupt the underlying work.
 
+> *If this surprises you, this library is not what you want.*
+
+> Cancellation is observed solely for permit accounting and is not propagated into user code.
+
 Cancellation only affects admission accounting.
 Always combine bulkheads with downstream timeouts and cooperative cancellation
 to prevent abandoned work from continuing to consume resources.
@@ -172,3 +178,11 @@ This library is likely a poor fit if you require:
 * retries or fallback policies
 * adaptive or auto-tuned limits
 * framework-managed execution
+
+## 8. Common misuse
+
+* Using it without downstream timeouts
+* Using it after work has started
+* Using snapshots for coordination
+
+> Starvation is acceptable because this bulkhead makes no fairness claims by design.
