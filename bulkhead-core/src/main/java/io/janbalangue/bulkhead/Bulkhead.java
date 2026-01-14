@@ -6,6 +6,8 @@ import java.util.concurrent.Semaphore;
 import java.util.function.Supplier;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.Objects;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletionException;
 
 /**
  * An async bulkhead that limits the number of in-flight asynchronous operations.
@@ -167,6 +169,15 @@ public final class Bulkhead {
         }
     }
 
+    private static boolean isCancellation(Throwable t) {
+        if (t instanceof CancellationException) return true;
+        if (t instanceof CompletionException) {
+            Throwable cause = ((CompletionException) t).getCause();
+            return cause instanceof CancellationException;
+        }
+        return false;
+    }
+
     /**
      * Submits an async operation to the bulkhead.
      *
@@ -245,9 +256,14 @@ public final class Bulkhead {
                     }
 
                     if (releaseError == null) {
-                        if (e != null) safe(() -> listener.onReleased(TerminalKind.FAILURE, e));
-                        else safe(() -> listener.onReleased(TerminalKind.SUCCESS, null));
+                        if (e != null) {
+                            if (isCancellation(e)) safe(() -> listener.onReleased(TerminalKind.CANCELLED, null));
+                            else safe(() -> listener.onReleased(TerminalKind.FAILURE, e));
+                        } else {
+                            safe(() -> listener.onReleased(TerminalKind.SUCCESS, null));
+                        }
                     }
+
                 }
 
                 if (releaseError != null) {

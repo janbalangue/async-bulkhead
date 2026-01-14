@@ -5,18 +5,77 @@ import org.junit.jupiter.api.Test;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.concurrent.atomic.*;
+import java.util.stream.Stream;
 
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class BulkheadTest {
+
+    static Stream<Throwable> supplierCancellationExceptions() {
+        return Stream.of(
+                new CancellationException("supplier cancelled"),
+                new CompletionException(new CancellationException("supplier cancelled (wrapped)"))
+        );
+    }
+
+    @ParameterizedTest
+    @MethodSource("supplierCancellationExceptions")
+    public void supplierStageCancellationIsClassifiedAsCancelledAndReleasesPermit(Throwable cancellation) {
+        AtomicReference<TerminalKind> kindRef = new AtomicReference<>();
+        AtomicReference<Throwable> errorRef = new AtomicReference<>();
+        CountDownLatch released = new CountDownLatch(1);
+
+        BulkheadListener listener = new BulkheadListener() {
+            @Override
+            public void onReleased(TerminalKind kind, Throwable error) {
+                kindRef.set(kind);
+                errorRef.set(error);
+                released.countDown();
+            }
+        };
+
+        Bulkhead bulkhead = new Bulkhead(1, listener);
+
+        CompletableFuture<String> supplierStage = new CompletableFuture<>();
+        CompletionStage<String> returned = bulkhead.submit(() -> supplierStage);
+
+        supplierStage.completeExceptionally(cancellation);
+
+        awaitUnchecked(released);
+
+        assertEquals(TerminalKind.CANCELLED, kindRef.get(), "listener terminal kind");
+        assertNull(errorRef.get(), "listener error must be null for CANCELLED");
+
+        // Returned stage should still be exceptional and preserve the cancellation cause.
+        CompletableFuture<String> f = returned.toCompletableFuture();
+        assertTrue(f.isCompletedExceptionally());
+
+        try {
+            f.join();
+            fail("expected exceptional completion");
+        } catch (CancellationException ce) {
+            // Acceptable if it propagates as a CancellationException directly.
+        } catch (CompletionException ce) {
+            assertInstanceOf(CancellationException.class, ce.getCause());
+        }
+
+        // Permit released: next submit admitted
+        assertEquals(
+                "ok",
+                bulkhead.submit(() -> CompletableFuture.completedFuture("ok"))
+                        .toCompletableFuture()
+                        .join()
+        );
+    }
 
     private static void awaitUnchecked(CountDownLatch latch) {
         try {
@@ -810,5 +869,53 @@ public class BulkheadTest {
 
         // cleanup underlying
         gate.complete("unused");
+    }
+
+    @Test
+    public void supplierStageCancellationIsClassifiedAsCancelledAndReleasesPermit() {
+        // Given: a bulkhead with a listener that records terminal kind/error
+        AtomicReference<TerminalKind> kindRef = new AtomicReference<>();
+        AtomicReference<Throwable> errorRef = new AtomicReference<>();
+        CountDownLatch released = new CountDownLatch(1);
+
+        BulkheadListener listener = new BulkheadListener() {
+            @Override
+            public void onReleased(TerminalKind kind, Throwable error) {
+                kindRef.set(kind);
+                errorRef.set(error);
+                released.countDown();
+            }
+        };
+
+        Bulkhead bulkhead = new Bulkhead(1, listener);
+
+        // And: an admitted operation whose *supplier stage* will be cancelled exceptionally
+        CompletableFuture<String> supplierStage = new CompletableFuture<>();
+        CompletionStage<String> returned = bulkhead.submit(() -> supplierStage);
+
+        // When: the supplier stage completes exceptionally with CancellationException
+        supplierStage.completeExceptionally(new CancellationException("supplier cancelled"));
+
+        // Then: listener observes CANCELLED (and error must be null)
+        awaitUnchecked(released);
+        assertEquals(TerminalKind.CANCELLED, kindRef.get());
+        assertNull(errorRef.get());
+
+        // And: the returned stage is still exceptional (propagates the supplier failure)
+        CompletableFuture<String> f = returned.toCompletableFuture();
+        assertTrue(f.isCompletedExceptionally());
+        try {
+            f.join();
+            fail("expected exceptional completion");
+        } catch (CancellationException ce) {
+            // If it ever becomes an actual cancelled future (unlikely here), this is fine too.
+        } catch (CompletionException ce) {
+            assertInstanceOf(CancellationException.class, ce.getCause());
+        }
+
+        // And: permit is released, so next submit is accepted
+        CompletionStage<String> second =
+                bulkhead.submit(() -> CompletableFuture.completedFuture("ok"));
+        assertEquals("ok", second.toCompletableFuture().join());
     }
 }

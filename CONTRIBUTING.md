@@ -2,8 +2,7 @@
 
 Thanks for your interest in contributing.
 
-This project is intentionally **small, opinionated, and design-driven**. Contributions are welcome,
-but correctness and explicit semantics take priority over feature breadth.
+This project is intentionally **small, opinionated, and design-driven**. Contributions are welcome, but correctness and explicit semantics take priority over feature breadth.
 
 ---
 
@@ -94,6 +93,7 @@ This project is **pre-1.0**:
 - breaking changes will be documented in the changelog
 
 > This project’s changelog documents **only user-visible changes to runtime behavior, public APIs, and operational guarantees**; internal refactors and implementation details are omitted unless they affect those guarantees.
+
 ---
 
 ## Communication style

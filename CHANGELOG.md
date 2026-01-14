@@ -26,10 +26,17 @@ Until version `1.0.0`, all releases are **pre-stable** and may introduce breakin
 
 ## Publication note
 
-Some early 0.1.x versions were affected by cancelled or incomplete Maven Central publication attempts. Because Maven Central does not allow reuse of version numbers once a deployment is cancelled or rejected,
-those versions should be considered **non-canonical**.
+Some early 0.1.x versions were affected by cancelled or incomplete Maven Central publication attempts. Because Maven Central does not allow reuse of version numbers once a deployment is cancelled or rejected, those versions should be considered **non-canonical**.
 
 The first fully published and supported release series begins with 0.1.7.
+
+---
+
+## [0.3.1] - 2026-01-14
+
+### Clarified
+- Cancellation is classified as `TerminalKind.CANCELLED` even when observed via wrapped exceptions (e.g. `CompletionException` wrapping a `CancellationException`).
+- This affects listener classification and observability only; capacity release semantics are unchanged.
 
 ---
 
@@ -64,6 +71,7 @@ The first fully published and supported release series begins with 0.1.7.
 - Invariant violations in internal permit accounting continue to be surfaced as `IllegalStateException`.
 
 > *These indicate internal bugs and should never be observed in correct usage.*
+
 ---
 
 ## [0.2.3] - 2026-01-05

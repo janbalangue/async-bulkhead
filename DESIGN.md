@@ -296,6 +296,8 @@ In both cases:
 
 This classification exists to allow downstream systems to distinguish load shedding or caller abandonment from genuine execution failures.
 
+> A terminal outcome is classified as `CANCELLED` if cancellation is observed directly or as the causal root of a wrapped exception (e.g. `CompletionException`).
+
 ---
 
 ## 14. Observability contract reminder
