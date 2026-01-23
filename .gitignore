@@ -33,3 +33,6 @@ Thumbs.db
 
 # ===== Maven wrapper (if added later) =====
 .mvn/wrapper/maven-wrapper.jar
+
+# ===== .DS_Store =====
+.DS_Store

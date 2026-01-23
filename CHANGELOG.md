@@ -32,6 +32,15 @@ The first fully published and supported release series begins with 0.1.7.
 
 ---
 
+## 0.3.2
+
+### Fixed
+- Fixed artifact publication so `io.janbalangue:async-bulkhead` is a standalone, drop-in dependency.
+- Users no longer need to depend on `bulkhead-core` directly.
+- No runtime, semantic, or API changes.
+
+---
+
 ## [0.3.1] - 2026-01-14
 
 ### Clarified

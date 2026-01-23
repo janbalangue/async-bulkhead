@@ -222,9 +222,22 @@ For precise semantics and guarantees, see:
 
 ## Basic usage
 
+## Dependency
+
+```xml
+<dependency>
+    <groupId>io.janbalangue</groupId>
+    <artifactId>async-bulkhead</artifactId>
+    <version>0.3.2</version>
+</dependency>
+```
+
+`async-bulkhead` is a standalone, drop-in dependency.
+You do not need to depend on any internal or core modules.
+
 ```java
-import io.janbalangue.bulkhead.Bulkhead;
-import io.janbalangue.bulkhead.BulkheadRejectedException;
+import io.janbalangue.asyncbulkhead.Bulkhead;
+import io.janbalangue.asyncbulkhead.BulkheadRejectedException;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;

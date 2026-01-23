@@ -1,4 +1,4 @@
-# async-bulkhead — Design (v0.3.0)
+# async-bulkhead — Design (v0.3.x)
 
 This document describes the *design goals, invariants, and semantics* of **async-bulkhead** as of **v0.3.0**. It is intentionally precise and opinionated. If something is not specified here, it is either a non-goal or explicitly undefined.
 
@@ -230,6 +230,9 @@ They are explicitly **not** a concurrency control mechanism.
 The following pattern is **incorrect** and must not be used:
 
 ```java
+// imports omitted for brevity:
+// io.janbalangue.asyncbulkhead.Bulkhead
+// io.janbalangue.asyncbulkhead.BulkheadRejectedException
 if (bulkhead.available() > 0) {
 bulkhead.submit(task);
 }

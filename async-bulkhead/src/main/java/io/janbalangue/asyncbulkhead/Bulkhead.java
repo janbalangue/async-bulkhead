@@ -1,4 +1,4 @@
-package io.janbalangue.bulkhead;
+package io.janbalangue.asyncbulkhead;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;

@@ -1,4 +1,4 @@
-package io.janbalangue.bulkhead;
+package io.janbalangue.asyncbulkhead;
 
 /**
  * Exception indicating that a bulkhead rejected a task because it was saturated.

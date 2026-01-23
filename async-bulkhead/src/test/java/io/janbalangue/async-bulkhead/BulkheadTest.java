@@ -1,4 +1,4 @@
-package io.janbalangue.bulkhead;
+package io.janbalangue.asyncbulkhead;
 
 import org.junit.jupiter.api.Test;
 
@@ -25,7 +25,7 @@ public class BulkheadTest {
                 new CancellationException("supplier cancelled"),
                 new CompletionException(new CancellationException("supplier cancelled (wrapped)"))
         );
-    }
+    };
 
     @ParameterizedTest
     @MethodSource("supplierCancellationExceptions")

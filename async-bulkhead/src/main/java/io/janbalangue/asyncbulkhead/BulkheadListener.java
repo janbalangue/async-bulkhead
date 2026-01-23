@@ -1,4 +1,4 @@
-package io.janbalangue.bulkhead;
+package io.janbalangue.asyncbulkhead;
 
 /**
  * Observability hooks for {@link Bulkhead}.

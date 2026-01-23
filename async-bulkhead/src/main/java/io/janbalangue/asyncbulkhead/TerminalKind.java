@@ -1,4 +1,4 @@
-package io.janbalangue.bulkhead;
+package io.janbalangue.asyncbulkhead;
 
 /**
  * Terminal outcome kinds used for bulkhead observability callbacks.

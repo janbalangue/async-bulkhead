@@ -8,16 +8,17 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>io.github.janbalangue</groupId>
-    <artifactId>async-bulkhead</artifactId>
-    <version>0.4.0-SNAPSHOT</version>
+    <artifactId>async-bulkhead-parent</artifactId>
+    <version>0.3.2</version>
     <packaging>pom</packaging>
 
-    <name>Async Bulkhead</name>
+    <name>Async Bulkhead - Parent</name>
     <description>Small, explicit async bulkhead for Java</description>
     <url>https://github.com/janbalangue/async-bulkhead</url>
 
     <modules>
         <module>bulkhead-core</module>
+        <module>async-bulkhead</module>
     </modules>
 
     <properties>
