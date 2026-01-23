@@ -10,13 +10,13 @@
     <parent>
         <groupId>io.github.janbalangue</groupId>
         <artifactId>async-bulkhead-parent</artifactId>
-        <version>0.3.2</version>
+        <version>0.3.3</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
     <groupId>io.github.janbalangue</groupId>
     <artifactId>async-bulkhead</artifactId>
-    <version>0.3.2-SNAPSHOT</version>
+    <version>0.3.2</version>
     <packaging>jar</packaging>
 
     <name>Async Bulkhead</name>

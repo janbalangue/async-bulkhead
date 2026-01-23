@@ -32,6 +32,14 @@ The first fully published and supported release series begins with 0.1.7.
 
 ---
 
+## 0.3.3
+
+### Fixed
+- Fixed release versioning to ensure non-SNAPSHOT artifacts are published correctly to Maven Central.
+- No runtime, semantic, or API changes.
+
+---
+
 ## 0.3.2
 
 ### Fixed
