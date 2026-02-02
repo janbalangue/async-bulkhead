@@ -3,9 +3,7 @@
 > *Production users should start at ≥ 0.1.7.*
 
 All notable, user-visible changes to runtime behavior and public APIs are documented in this file.
-
 This changelog documents only **user-visible changes** to runtime behavior, public APIs, and operational guarantees; internal refactors and implementation details are omitted unless they affect those guarantees.
-
 Until version `1.0.0`, all releases are **pre-stable** and may introduce breaking changes. Any such changes will be explicitly documented.
 
 ---
@@ -13,6 +11,20 @@ Until version `1.0.0`, all releases are **pre-stable** and may introduce breakin
 ## [Unreleased]
 
 _No user-visible changes._
+
+---
+
+## [0.5.2] – 2026-02-01
+
+### Build / Release
+- Fixed a YAML syntax error in the GitHub release workflow that prevented execution.
+- Quoted a step name containing a colon (Guardrail: …) to ensure valid YAML parsing.
+- No changes to runtime behavior, public APIs, semantics, or tests.
+
+### Notes
+- This release exists solely to restore release pipeline correctness.
+- All runtime guarantees, cancellation semantics, and listener behavior remain identical to v0.5.1 and v0.5.0.
+- Users already on v0.5.x do not need to upgrade unless they rely on building or publishing from source.
 
 ---
 
@@ -63,60 +75,50 @@ The first fully published and supported release series begins with 0.1.7.
 
 ---
 
-## [0.4.1] – 2026-01-XX
-Documentation
+## [0.4.1] - 2026-01
 
-Clarified and stabilized DESIGN.md wording.
+### Notes
+- **Not published** (Maven Central deployment was cancelled; version cannot be reused).
+- No runtime behavior, public API, or semantic changes from v0.4.0.
+- This version number exists only for bookkeeping and documentation continuity.
 
-No changes to runtime behavior, public APIs, or semantics.
+## [0.4.0] – 2026-01
 
-No changes to tests or admission guarantees.
-
-Note: This release introduces no semantic changes from v0.4.0.
-It exists to tighten documentation and confirm stability after the v0.4.0 namespace change.
-
-## [0.4.0] – 2026-01-XX
-⚠️ Breaking change
+### ⚠️ Breaking change
 
 Public Java package namespace renamed
 
 `io.janbalangue.bulkhead.*` → `io.janbalangue.asyncbulkhead.*`
 
 This aligns the public API with:
-
-* the Maven artifact name (async-bulkhead)
-* repository structure
-* long-term package ownership clarity
+- the Maven artifact name (async-bulkhead)
+- repository structure
+- long-term package ownership clarity
 
 Migration: update imports via a simple search/replace:
 
 `io.janbalangue.bulkhead` → `io.janbalangue.asyncbulkhead`
 
-Added
-
-* Overload handling helpers
-* `Bulkhead.submitOrElse(...)`
-* `Bulkhead.submitOrElseValue(...)`
+### Added
+- Overload handling helpers
+-`Bulkhead.submitOrElse(...)`
+- `Bulkhead.submitOrElseValue(...)`
 
 Enables concise, explicit fallback behavior when capacity is exhausted.
 
-Rejection classification utilities
-
-BulkheadRejectedException.unwrap(Throwable)
-
-BulkheadRejectedException.isRejected(Throwable)
+### Rejection classification utilities
+-`BulkheadRejectedException.unwrap(Throwable)`
+-`BulkheadRejectedException.isRejected(Throwable)`
 
 Simplifies distinguishing overload rejection from execution failure in async pipelines.
 
-Guardrails & correctness
+### Guardrails & correctness
 
 Added namespace and API smoke tests to ensure:
+- correct public package exposure
+- protection against accidental namespace regression
 
-correct public package exposure
-
-protection against accidental namespace regression
-
-Semantics
+### Semantics
 
 No changes to admission, rejection, cancellation, or permit-lifetime semantics.
 
@@ -297,7 +299,6 @@ This was corrected in subsequent releases, and later version numbers reflect act
 
 ## [0.1.2] - 2025-12-30
 ### Fixed
-
 - Maven Central publishing readiness fixes (GPG signing, metadata, staging)
 - Parent / module POM alignment and groupId consistency
 - Test stability under high concurrency (permit release & rejection assertions)
@@ -311,7 +312,6 @@ This was corrected in subsequent releases, and later version numbers reflect act
 ## [0.1.1] - 2025-12-30
 
 ### Fixed
-
 - Maven build and publishing metadata corrections
 - Minor test assertion compatibility fixes
 - Documentation formatting cleanup
@@ -321,7 +321,6 @@ This was corrected in subsequent releases, and later version numbers reflect act
 ## [0.1.0] — 2025-12-30
 
 ### Added
-
 - Async bulkhead with a fixed upper bound on **in-flight async operations**
 - Fail-fast rejection when capacity is exhausted (no waiting or queuing)
 - Explicit rejection signaling via `BulkheadRejectedException`

@@ -64,7 +64,7 @@ jobs:
 
           echo "✅ Version check passed"
 
-      - name: Guardrail: reject old groupId
+      - name: Guardrail reject old groupId
         shell: bash
         run: |
           set -euo pipefail

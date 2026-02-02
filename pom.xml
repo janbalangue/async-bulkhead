@@ -12,7 +12,7 @@
     <!-- ========================================================= -->
     <groupId>io.github.janbalangue</groupId>
     <artifactId>async-bulkhead-parent</artifactId>
-    <version>0.5.1</version>
+    <version>0.5.2</version>
     <packaging>pom</packaging>
 
     <name>Async Bulkhead (Parent)</name>
@@ -58,7 +58,7 @@
         <url>https://github.com/janbalangue/async-bulkhead</url>
         <connection>scm:git:https://github.com/janbalangue/async-bulkhead.git</connection>
         <developerConnection>scm:git:git@github.com:janbalangue/async-bulkhead.git</developerConnection>
-        <tag>v0.5.1</tag>
+        <tag>v0.5.2</tag>
     </scm>
 
     <developers>
