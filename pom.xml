@@ -10,9 +10,9 @@
     <!-- ========================================================= -->
     <!-- Parent coordinates (BUILD ONLY, NOT A LIBRARY)            -->
     <!-- ========================================================= -->
-    <groupId>io.janbalangue</groupId>
+    <groupId>io.github.janbalangue</groupId>
     <artifactId>async-bulkhead-parent</artifactId>
-    <version>0.5.0</version>
+    <version>0.5.1</version>
     <packaging>pom</packaging>
 
     <name>Async Bulkhead (Parent)</name>
@@ -38,11 +38,27 @@
         </license>
     </licenses>
 
+    <distributionManagement>
+        <repository>
+            <id>central</id>
+            <name>Central (OSSRH Staging API compatibility)</name>
+            <url>https://ossrh-staging-api.central.sonatype.com/service/local/staging/deploy/maven2/</url>
+        </repository>
+
+        <!-- Optional, only if you ever deploy snapshots -->
+        <snapshotRepository>
+            <id>central</id>
+            <name>Central Snapshots</name>
+            <url>https://central.sonatype.com/repository/maven-snapshots/</url>
+        </snapshotRepository>
+    </distributionManagement>
+
+
     <scm>
         <url>https://github.com/janbalangue/async-bulkhead</url>
         <connection>scm:git:https://github.com/janbalangue/async-bulkhead.git</connection>
         <developerConnection>scm:git:git@github.com:janbalangue/async-bulkhead.git</developerConnection>
-        <tag>v0.5.0</tag>
+        <tag>v0.5.1</tag>
     </scm>
 
     <developers>
@@ -155,6 +171,7 @@
                         <executions>
                             <execution>
                                 <id>attach-sources</id>
+                                <phase>verify</phase>
                                 <goals>
                                     <goal>jar</goal>
                                 </goals>
@@ -168,6 +185,7 @@
                         <executions>
                             <execution>
                                 <id>attach-javadocs</id>
+                                <phase>verify</phase>
                                 <goals>
                                     <goal>jar</goal>
                                 </goals>

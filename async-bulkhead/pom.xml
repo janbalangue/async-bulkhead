@@ -9,9 +9,9 @@
 
     <!-- Parent: build / release / policy only -->
     <parent>
-        <groupId>io.janbalangue</groupId>
+        <groupId>io.github.janbalangue</groupId>
         <artifactId>async-bulkhead-parent</artifactId>
-        <version>0.5.0</version>
+        <version>0.5.1</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 

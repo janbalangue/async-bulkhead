@@ -16,6 +16,19 @@ _No user-visible changes._
 
 ---
 
+## [0.5.1] - 2026-02-01
+
+### Build / Publishing
+- Corrected Maven coordinates to publish under the intended groupId:
+`io.github.janbalangue` (replacing an incorrect `io.janbalangue`).
+   - Hardened release guardrails to prevent publishing with invalid coordinates and to fail fast before deployment.
+
+### Notes
+- This release exists to fix **publishing correctness**, not runtime behavior.
+- No changes to runtime semantics, public APIs, or tests beyond build/release safety checks.
+
+---
+
 ## [0.5.0] - 2026-02-01
 
 ### Semantics
@@ -50,7 +63,7 @@ The first fully published and supported release series begins with 0.1.7.
 
 ---
 
-[0.4.1] – 2026-01-XX
+## [0.4.1] – 2026-01-XX
 Documentation
 
 Clarified and stabilized DESIGN.md wording.
