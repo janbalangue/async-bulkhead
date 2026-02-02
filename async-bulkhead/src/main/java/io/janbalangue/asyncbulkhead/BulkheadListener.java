@@ -1,4 +1,4 @@
-package io.janbalangue.bulkhead;
+package io.janbalangue.asyncbulkhead;
 
 /**
  * Observability hooks for {@link Bulkhead}.
@@ -18,18 +18,21 @@ public interface BulkheadListener {
      *
      * <p>The rejected operation supplier was not invoked and no user work was started.</p>
      */
-    default void onRejected() {}
+    default void onRejected() {
+    }
 
     /**
      * Called after a permit is acquired and before invoking the supplier.
      */
-    default void onAdmitted() {}
+    default void onAdmitted() {
+    }
 
     /**
      * Called exactly once per admitted operation when the bulkhead releases its permit.
      *
-     * @param kind terminal outcome observed by the bulkhead
+     * @param kind  terminal outcome observed by the bulkhead
      * @param error non-null iff {@code kind == TerminalKind.FAILURE}; otherwise null
      */
-    default void onReleased(TerminalKind kind, Throwable error) {}
+    default void onReleased(TerminalKind kind, Throwable error) {
+    }
 }

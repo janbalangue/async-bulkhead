@@ -1,13 +1,9 @@
-package io.janbalangue.bulkhead;
+package io.janbalangue.asyncbulkhead;
 
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
-import java.util.concurrent.Semaphore;
-import java.util.function.Supplier;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.Objects;
-import java.util.concurrent.CancellationException;
-import java.util.concurrent.CompletionException;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Supplier;
 
 /**
  * An async bulkhead that limits the number of in-flight asynchronous operations.
@@ -107,6 +103,21 @@ public final class Bulkhead {
         }
     }
 
+    private static <T> CompletionStage<T> failed(Throwable t) {
+        CompletableFuture<T> f = new CompletableFuture<>();
+        f.completeExceptionally(t);
+        return f;
+    }
+
+    private static boolean isCancellation(Throwable t) {
+        if (t instanceof CancellationException) return true;
+        if (t instanceof CompletionException) {
+            Throwable cause = t.getCause();
+            return cause instanceof CancellationException;
+        }
+        return false;
+    }
+
     /**
      * Returns the configured maximum number of operations that may be in flight concurrently.
      *
@@ -143,12 +154,6 @@ public final class Bulkhead {
         return limit - checkedAvailablePermits();
     }
 
-    private static <T> CompletionStage<T> failed(Throwable t) {
-        CompletableFuture<T> f = new CompletableFuture<>();
-        f.completeExceptionally(t);
-        return f;
-    }
-
     private int checkedAvailablePermits() {
         int p = permits.availablePermits();
         if (p < 0 || p > limit) {
@@ -169,15 +174,6 @@ public final class Bulkhead {
         }
     }
 
-    private static boolean isCancellation(Throwable t) {
-        if (t instanceof CancellationException) return true;
-        if (t instanceof CompletionException) {
-            Throwable cause = ((CompletionException) t).getCause();
-            return cause instanceof CancellationException;
-        }
-        return false;
-    }
-
     /**
      * Submits an async operation to the bulkhead.
      *
@@ -189,31 +185,119 @@ public final class Bulkhead {
      *       and a stage failed with {@link BulkheadRejectedException} is returned.</li>
      * </ul>
      *
-     * <p><strong>completion</strong></p>
+     * <p><strong>Completion</strong></p>
      * <p>A permit is released exactly once when the returned stage reaches a terminal state:
      * success, exceptional completion, or cancellation.</p>
      *
      * <p><strong>Cancellation</strong></p>
      * <p>Cancelling the stage returned by this method releases the permit (if not already released),
      * but does not attempt to cancel or interrupt the underlying operation.</p>
+     * <p>If explicit cancellation propagation to underlying work is required, see
+     * {@link Cancellation} for an <em>opt-in</em>, best-effort helper.</p>
      *
-     *<p><strong>Cold work requirement</strong></p>
-     *<p>The supplier must be <em>cold</em>: it must not start work until invoked after admission.</p>
+     * <p><strong>Cold work requirement</strong></p>
+     * <p>The supplier must be <em>cold</em>: it must not start work until invoked after admission.</p>
      *
-     * @param <T> result type
+     * @param <T>       result type
      * @param operation supplier producing the stage to execute if admitted (must not be {@code null})
      * @return a stage representing the operation, or a failed stage if rejected
      * @throws NullPointerException if {@code operation} is {@code null} or returns {@code null}
      */
     public <T> CompletionStage<T> submit(Supplier<? extends CompletionStage<T>> operation) {
-        Objects.requireNonNull(operation);
+        Objects.requireNonNull(operation, "operation");
 
         if (!permits.tryAcquire()) {
             safe(listener::onRejected);
             return failed(new BulkheadRejectedException("Bulkhead is saturated"));
         }
-        safe(listener::onAdmitted);
 
+        safe(listener::onAdmitted);
+        return admitted(operation);
+    }
+
+    /**
+     * Submit, or run an explicit fallback if saturated.
+     *
+     * <p>If rejected, {@code onRejected} is invoked and its stage is returned. No permit is acquired,
+     * and {@code operation} is not invoked.</p>
+     *
+     * <p>For admitted operations, completion and cancellation semantics are identical to
+     * {@link #submit(Supplier)}.</p>
+     *
+     * @param <T>        result type
+     * @param operation  supplier producing the stage to execute if admitted (must not be {@code null})
+     * @param onRejected supplier producing the stage to return if rejected (must not be {@code null})
+     * @return a stage representing the operation, or the fallback stage if rejected
+     * @throws NullPointerException if any supplier is {@code null} or returns {@code null}
+     * @since 0.4.0
+     */
+    public <T> CompletionStage<T> submitOrElse(
+            Supplier<? extends CompletionStage<T>> operation,
+            Supplier<? extends CompletionStage<T>> onRejected
+    ) {
+        Objects.requireNonNull(operation, "operation");
+        Objects.requireNonNull(onRejected, "onRejected");
+
+        if (!permits.tryAcquire()) {
+            safe(listener::onRejected);
+            CompletionStage<T> fb = onRejected.get();
+            if (fb == null) throw new NullPointerException("onRejected supplier returned null CompletionStage");
+            return fb;
+        }
+
+        safe(listener::onAdmitted);
+        return admitted(operation);
+    }
+
+    /**
+     * Submit, or run an explicit fallback if saturated.
+     *
+     * <p>If rejected, {@code onRejected} is invoked and its stage is returned. No permit is acquired,
+     * and {@code operation} is not invoked.</p>
+     *
+     * <p>For admitted operations, completion and cancellation semantics are identical to
+     * {@link #submit(Supplier)}.</p>
+     *
+     * @param <T>             result type
+     * @param operation       supplier producing the stage to execute if admitted (must not be {@code null})
+     * @param onRejectedValue supplier producing the fallback value if rejected (must not be {@code null})
+     * @return a stage representing the operation, or a completed stage with the fallback value if rejected
+     * @throws NullPointerException if any supplier is {@code null} or returns {@code null}
+     * @since 0.4.0
+     */
+    public <T> CompletionStage<T> submitOrElseValue(
+            Supplier<? extends CompletionStage<T>> operation,
+            Supplier<? extends T> onRejectedValue
+    ) {
+        Objects.requireNonNull(operation, "operation");
+        Objects.requireNonNull(onRejectedValue, "onRejectedValue");
+
+        if (!permits.tryAcquire()) {
+            safe(listener::onRejected);
+            return CompletableFuture.completedFuture(onRejectedValue.get());
+        }
+
+        safe(listener::onAdmitted);
+        return admitted(operation);
+    }
+
+    /**
+     * Admitted path shared by all submission variants.
+     *
+     * <p><strong>Preconditions</strong></p>
+     * <ul>
+     *   <li>a permit has already been acquired for this admission</li>
+     *   <li>{@link BulkheadListener#onAdmitted()} has already been invoked</li>
+     * </ul>
+     *
+     * <p>This method is responsible for:</p>
+     * <ul>
+     *   <li>invoking {@code operation} exactly once</li>
+     *   <li>releasing the permit exactly once at terminal completion of the returned stage</li>
+     *   <li>mapping terminal outcomes to {@link TerminalKind} for {@link BulkheadListener#onReleased(TerminalKind, Throwable)}</li>
+     * </ul>
+     */
+    private <T> CompletionStage<T> admitted(Supplier<? extends CompletionStage<T>> operation) {
         final CompletionStage<T> stage;
         try {
             stage = operation.get();
@@ -223,7 +307,7 @@ public final class Bulkhead {
         } catch (Throwable t) {
             releaseChecked();
             safe(() -> listener.onReleased(TerminalKind.FAILURE, t));
-            return failed(t); // <-- return failed stage, don't throw
+            return failed(t); // return failed stage, don't throw
         }
 
         final AtomicBoolean released = new AtomicBoolean(false);
@@ -232,12 +316,20 @@ public final class Bulkhead {
             @Override
             public boolean cancel(boolean mayInterruptIfRunning) {
                 if (released.compareAndSet(false, true)) {
+                    Throwable releaseError = null;
                     try {
                         releaseChecked();
                     } catch (Throwable t) {
-                        this.completeExceptionally(t);
+                        releaseError = t;
+                    }
+
+                    if (releaseError != null) {
+                        Throwable finalError = releaseError;
+                        safe(() -> listener.onReleased(TerminalKind.FAILURE, finalError));
+                        this.completeExceptionally(releaseError);
                         return false;
                     }
+
                     safe(() -> listener.onReleased(TerminalKind.CANCELLED, null));
                 }
                 return super.cancel(mayInterruptIfRunning);
@@ -248,22 +340,35 @@ public final class Bulkhead {
             stage.whenComplete((r, e) -> {
                 Throwable releaseError = null;
 
+                TerminalKind kind;
+                Throwable observedError;
+
+                if (e != null) {
+                    if (isCancellation(e)) {
+                        kind = TerminalKind.CANCELLED;
+                        observedError = null;
+                    } else {
+                        kind = TerminalKind.FAILURE;
+                        observedError = e;
+                    }
+                } else {
+                    kind = TerminalKind.SUCCESS;
+                    observedError = null;
+                }
+
                 if (released.compareAndSet(false, true)) {
                     try {
                         releaseChecked();
                     } catch (Throwable t) {
                         releaseError = t;
+                        kind = TerminalKind.FAILURE;
+                        observedError = t;
                     }
 
-                    if (releaseError == null) {
-                        if (e != null) {
-                            if (isCancellation(e)) safe(() -> listener.onReleased(TerminalKind.CANCELLED, null));
-                            else safe(() -> listener.onReleased(TerminalKind.FAILURE, e));
-                        } else {
-                            safe(() -> listener.onReleased(TerminalKind.SUCCESS, null));
-                        }
-                    }
+                    TerminalKind finalKind = kind;
+                    Throwable finalError = observedError;
 
+                    safe(() -> listener.onReleased(finalKind, finalError));
                 }
 
                 if (releaseError != null) {
@@ -281,7 +386,7 @@ public final class Bulkhead {
             }
             return failed(t);
         }
+
         return out;
     }
 }
-

@@ -37,7 +37,7 @@ indefinitely.
 
 > Production systems must not rely on fairness or ordering guarantees.
 
-> *Starvation is possible under sustained contention and is considered acceptable behavior.*
+> *Starvation is possible under sustained contention and is considered acceptable behavior by design.*
 
 ---
 
@@ -75,6 +75,8 @@ In production, prefer standard, well-behaved `CompletionStage` implementations
 such as `CompletableFuture` or framework-provided stages with normal callback
 registration semantics.
 
+Failure to do so may result in immediate rejection and early capacity release to preserve bulkhead invariants.
+
 ## 3. Size conservatively and measure
 
 A bulkhead that allows too much concurrency can still cause:
@@ -101,10 +103,12 @@ Be especially careful when:
 * using thenCompose chains
 * orchestrating parallel downstream requests
 
-The bulkhead controls entry, not internal explosion.
+The bulkhead controls entry, not internal concurrency amplification.
 
 Rejection under contention is race-based and unordered; brief bursts of rejection
 are expected even when average load appears acceptable.
+
+This is a property of opportunistic admission, not a signal of misconfiguration.
 
 ## 4. Fan-out amplification
 
@@ -159,6 +163,8 @@ Bulkheads and timeouts are complementary.
 
 Neither replaces the other.
 
+The bulkhead makes no attempt to infer intent from cancellation signals.
+
 If callers abandon requests but underlying work continues to run,
 load can accumulate outside the bulkhead’s visibility.
 
@@ -183,6 +189,6 @@ This library is likely a poor fit if you require:
 
 * Using it without downstream timeouts
 * Using it after work has started
-* Using snapshots for coordination
+* Using snapshots for coordination (e.g., checking available permits outside submission)
 
-> Starvation is acceptable because this bulkhead makes no fairness claims by design.
+> Starvation is acceptable because this bulkhead makes no fairness or ordering claims by design.

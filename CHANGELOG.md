@@ -12,15 +12,33 @@ Until version `1.0.0`, all releases are **pre-stable** and may introduce breakin
 
 ## [Unreleased]
 
+_No user-visible changes._
+
+---
+
+## [0.5.0] - 2026-02-01
+
+### Semantics
+- Formalized and hardened cancellation, listener, and permit-lifetime semantics.
+- Explicitly defined cooperative vs external cancellation behavior.
+- Clarified listener guarantees and undefined behavior boundaries.
+- No change to the core admission model: fail-fast, unordered, and non-blocking.
+
+### Documentation
+- Fully aligned **README.md**, **DESIGN.md**, and **PRODUCTION.md** into a coherent, normative specification set.
+- DESIGN.md now serves as the authoritative semantic contract.
+- Expanded production guidance to document real-world failure modes and misuse.
+
 ### Build / CI
 - Hardened release workflow with:
   - strict tag ↔ POM version validation
   - explicit preflight `verify` before deployment
   - concurrency protection to prevent double-publishing
-  - safer non-interactive GPG key handling
-- Clarified separation of concerns between CI and release workflows:
+  - safer non-interactive GPG handling
+- Clarified separation of concerns between CI and release workflows
   - CI runs `mvn verify` only and does not require secrets or signing
   - Release workflow exclusively owns signing and Maven Central deployment
+- Added **JaCoCo** coverage reporting to CI builds.
 
 ---
 
@@ -29,6 +47,84 @@ Until version `1.0.0`, all releases are **pre-stable** and may introduce breakin
 Some early 0.1.x versions were affected by cancelled or incomplete Maven Central publication attempts. Because Maven Central does not allow reuse of version numbers once a deployment is cancelled or rejected, those versions should be considered **non-canonical**.
 
 The first fully published and supported release series begins with 0.1.7.
+
+---
+
+[0.4.1] – 2026-01-XX
+Documentation
+
+Clarified and stabilized DESIGN.md wording.
+
+No changes to runtime behavior, public APIs, or semantics.
+
+No changes to tests or admission guarantees.
+
+Note: This release introduces no semantic changes from v0.4.0.
+It exists to tighten documentation and confirm stability after the v0.4.0 namespace change.
+
+## [0.4.0] – 2026-01-XX
+⚠️ Breaking change
+
+Public Java package namespace renamed
+
+`io.janbalangue.bulkhead.*` → `io.janbalangue.asyncbulkhead.*`
+
+This aligns the public API with:
+
+* the Maven artifact name (async-bulkhead)
+* repository structure
+* long-term package ownership clarity
+
+Migration: update imports via a simple search/replace:
+
+`io.janbalangue.bulkhead` → `io.janbalangue.asyncbulkhead`
+
+Added
+
+* Overload handling helpers
+* `Bulkhead.submitOrElse(...)`
+* `Bulkhead.submitOrElseValue(...)`
+
+Enables concise, explicit fallback behavior when capacity is exhausted.
+
+Rejection classification utilities
+
+BulkheadRejectedException.unwrap(Throwable)
+
+BulkheadRejectedException.isRejected(Throwable)
+
+Simplifies distinguishing overload rejection from execution failure in async pipelines.
+
+Guardrails & correctness
+
+Added namespace and API smoke tests to ensure:
+
+correct public package exposure
+
+protection against accidental namespace regression
+
+Semantics
+
+No changes to admission, rejection, cancellation, or permit-lifetime semantics.
+
+All existing guarantees remain unchanged and test-backed.
+
+### Publication note
+
+The v0.4.0 release did **not** introduce new runtime behavior beyond what was already present in the v0.3.x series.
+
+Due to a release process issue, v0.4.0 was published with:
+
+- the **v0.3.x runtime semantics**, and
+- the **namespace change** described above,
+
+but without additional semantic changes expected from a minor version bump.
+
+As a result, v0.4.0 should be understood as:
+
+> a packaging and namespace correction release, not a semantic evolution.
+
+This was corrected in subsequent releases, and later version numbers reflect actual semantic changes accurately.
 
 ---
 

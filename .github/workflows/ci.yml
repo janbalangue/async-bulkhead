@@ -34,3 +34,24 @@ jobs:
         run: |
           set -euo pipefail
           mvn -B -q verify
+
+      - name: Upload JaCoCo report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-report
+          path: |
+            **/target/site/jacoco/**
+            **/target/jacoco.exec
+            **/target/site/jacoco/jacoco.xml
+
+      - name: JaCoCo summary
+        if: always()
+        uses: madrapps/jacoco-report@v1.7.0
+        with:
+          paths: |
+            **/target/site/jacoco/jacoco.xml
+          token: ${{ secrets.GITHUB_TOKEN }}
+          min-coverage-overall: 0
+          min-coverage-changed-files: 0
+

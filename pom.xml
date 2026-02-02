@@ -3,68 +3,181 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="
            http://maven.apache.org/POM/4.0.0
-           https://maven.apache.org/xsd/maven-4.0.0.xsd">
+           http://maven.apache.org/xsd/maven-4.0.0.xsd">
 
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>io.github.janbalangue</groupId>
-    <artifactId>async-bulkhead</artifactId>
-    <version>0.4.0</version>
+    <!-- ========================================================= -->
+    <!-- Parent coordinates (BUILD ONLY, NOT A LIBRARY)            -->
+    <!-- ========================================================= -->
+    <groupId>io.janbalangue</groupId>
+    <artifactId>async-bulkhead-parent</artifactId>
+    <version>0.5.0</version>
     <packaging>pom</packaging>
 
-    <name>Async Bulkhead</name>
-    <description>Small, explicit async bulkhead for Java</description>
-    <url>https://github.com/janbalangue/async-bulkhead</url>
+    <name>Async Bulkhead (Parent)</name>
+    <description>Build and release parent for async-bulkhead</description>
 
+    <!-- ========================================================= -->
+    <!-- Modules                                                   -->
+    <!-- ========================================================= -->
     <modules>
-        <module>bulkhead-core</module>
+        <module>async-bulkhead</module>
     </modules>
 
+    <!-- ========================================================= -->
+    <!-- Project metadata (inherited by children)                  -->
+    <!-- ========================================================= -->
+    <url>https://github.com/janbalangue/async-bulkhead</url>
+
+    <licenses>
+        <license>
+            <name>Apache License, Version 2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <scm>
+        <url>https://github.com/janbalangue/async-bulkhead</url>
+        <connection>scm:git:https://github.com/janbalangue/async-bulkhead.git</connection>
+        <developerConnection>scm:git:git@github.com:janbalangue/async-bulkhead.git</developerConnection>
+        <tag>v0.5.0</tag>
+    </scm>
+
+    <developers>
+        <developer>
+            <id>janbalangue</id>
+            <name>Jay Balangue</name>
+            <url>https://github.com/janbalangue</url>
+        </developer>
+    </developers>
+
+    <!-- ========================================================= -->
+    <!-- Properties                                                -->
+    <!-- ========================================================= -->
     <properties>
         <maven.compiler.release>17</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <maven.compiler.parameters>true</maven.compiler.parameters>
-        <gpg.keyname>25A84E2292878174</gpg.keyname>
-        <maven.javadoc.skip>false</maven.javadoc.skip>
+        <junit.version>5.10.1</junit.version>
+        <jacoco.skip>false</jacoco.skip>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     </properties>
 
-    <pluginRepositories>
-        <pluginRepository>
-            <id>central</id>
-            <name>Maven Central</name>
-            <url>https://repo.maven.apache.org/maven2</url>
-            <releases>
-                <enabled>true</enabled>
-            </releases>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
-        </pluginRepository>
-    </pluginRepositories>
+    <!-- ========================================================= -->
+    <!-- Dependency Management                                     -->
+    <!-- ========================================================= -->
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.junit.jupiter</groupId>
+                <artifactId>junit-jupiter</artifactId>
+                <version>${junit.version}</version>
+                <scope>test</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
+    <!-- ========================================================= -->
+    <!-- Plugin Management                                         -->
+    <!-- ========================================================= -->
+    <build>
+        <pluginManagement>
+            <plugins>
+
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>3.13.0</version>
+                </plugin>
+
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <version>3.2.5</version>
+                </plugin>
+
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-source-plugin</artifactId>
+                    <version>3.3.1</version>
+                </plugin>
+
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-javadoc-plugin</artifactId>
+                    <version>3.6.3</version>
+                </plugin>
+
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-gpg-plugin</artifactId>
+                    <version>3.2.4</version>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+        <plugins>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>0.8.14</version>
+                <configuration>
+                    <skip>${jacoco.skip}</skip>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>prepare-agent</id>
+                        <goals><goal>prepare-agent</goal></goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>verify</phase>
+                        <goals><goal>report</goal></goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+
+    <!-- ========================================================= -->
+    <!-- Release profile (used only by CI)                          -->
+    <!-- ========================================================= -->
     <profiles>
         <profile>
             <id>release</id>
             <build>
                 <plugins>
+
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-source-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>attach-sources</id>
+                                <goals>
+                                    <goal>jar</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>attach-javadocs</id>
+                                <goals>
+                                    <goal>jar</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-gpg-plugin</artifactId>
-                        <version>3.2.8</version>
-
-                        <configuration>
-                            <!-- IMPORTANT: read passphrase from env in CI -->
-                            <passphraseEnvName>MAVEN_GPG_PASSPHRASE</passphraseEnvName>
-
-                            <!-- IMPORTANT: stop gpg from trying to prompt -->
-                            <gpgArguments>
-                                <arg>--batch</arg>
-                                <arg>--no-tty</arg>
-                                <arg>--pinentry-mode</arg>
-                                <arg>loopback</arg>
-                            </gpgArguments>
-                        </configuration>
-
                         <executions>
                             <execution>
                                 <id>sign-artifacts</id>
@@ -75,73 +188,9 @@
                             </execution>
                         </executions>
                     </plugin>
-                    <plugin>
-                        <groupId>org.sonatype.central</groupId>
-                        <artifactId>central-publishing-maven-plugin</artifactId>
-                        <version>0.9.0</version>
-                        <extensions>true</extensions>
-                        <configuration>
-                            <publishingServerId>central</publishingServerId>
-                            <!-- optional for CI -->
-                            <!-- <autoPublish>true</autoPublish> -->
-                            <!-- <waitUntil>published</waitUntil> -->
-                        </configuration>
-                    </plugin>
                 </plugins>
             </build>
         </profile>
     </profiles>
-
-
-    <licenses>
-        <license>
-            <name>Apache License, Version 2.0</name>
-            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
-            <distribution>repo</distribution>
-        </license>
-    </licenses>
-
-    <developers>
-        <developer>
-            <id>janbalangue</id>
-            <name>Jan Balangue</name>
-            <url>https://github.com/janbalangue</url>
-        </developer>
-    </developers>
-
-    <scm>
-        <url>https://github.com/janbalangue/async-bulkhead</url>
-        <connection>scm:git:https://github.com/janbalangue/async-bulkhead.git</connection>
-        <developerConnection>scm:git:ssh://git@github.com:janbalangue/async-bulkhead.git</developerConnection>
-        <tag>v${project.version}</tag>
-    </scm>
-
-    <build>
-        <pluginManagement>
-            <plugins>
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-javadoc-plugin</artifactId>
-                    <version>3.12.0</version>
-                </plugin>
-            </plugins>
-        </pluginManagement>
-        <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-source-plugin</artifactId>
-                <version>3.3.1</version>
-                <executions>
-                    <execution>
-                        <id>attach-sources</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>jar-no-fork</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-        </plugins>
-    </build>
 
 </project>
