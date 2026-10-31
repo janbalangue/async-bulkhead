@@ -1,5 +1,9 @@
 # Async Bulkhead (Java)
 
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.janbalangue/async-bulkhead.svg)](https://central.sonatype.com/artifact/io.github.janbalangue/async-bulkhead)
+[![CI](https://github.com/janbalangue/async-bulkhead/actions/workflows/ci.yml/badge.svg)](https://github.com/janbalangue/async-bulkhead/actions/workflows/ci.yml)
+[![license](https://img.shields.io/github/license/janbalangue/async-bulkhead.svg)](LICENSE)
+
 ⚠️ **Pre-1.0 with a stable semantic core**
 
 This repository provides a small, opinionated **async bulkhead** for Java with **explicit, test-backed semantics** around overload behavior.
@@ -7,11 +11,66 @@ The goal is to make overload **bounded, visible, and predictable**.
 
 > *This library does not prevent overload failures; it prevents overload from being silent.*
 
-## Migration
+## Install
 
-A simple search/replace is sufficient:
+Requires Java 17 or later. Published on [Maven Central](https://central.sonatype.com/artifact/io.github.janbalangue/async-bulkhead).
 
-`io.janbalangue.bulkhead` → `io.janbalangue.asyncbulkhead`
+Maven:
+
+```xml
+<dependency>
+  <groupId>io.github.janbalangue</groupId>
+  <artifactId>async-bulkhead</artifactId>
+  <version>0.6.0</version>
+</dependency>
+```
+
+Gradle:
+
+```kotlin
+implementation("io.github.janbalangue:async-bulkhead:0.6.0")
+```
+
+## Quick start
+
+With one permit, the first call is admitted and the second is rejected right away:
+
+```java
+import io.janbalangue.asyncbulkhead.Bulkhead;
+import io.janbalangue.asyncbulkhead.BulkheadRejectedException;
+
+import java.util.concurrent.CompletableFuture;
+
+public class QuickStart {
+  public static void main(String[] args) {
+    Bulkhead bulkhead = new Bulkhead(1);
+    CompletableFuture<String> slowCall = new CompletableFuture<>();
+
+    // Takes the only permit and holds it until slowCall completes.
+    bulkhead.submit(() -> slowCall)
+        .thenAccept(value -> System.out.println("first: " + value));
+
+    // Fails right away: no queue, no waiting, and the supplier never runs.
+    bulkhead.submit(() -> CompletableFuture.completedFuture("never runs"))
+        .whenComplete((value, error) -> {
+          if (BulkheadRejectedException.isRejected(error)) {
+            System.out.println("second: rejected");
+          }
+        });
+
+    slowCall.complete("done");
+    System.out.println("available: " + bulkhead.available());
+  }
+}
+```
+
+Output:
+
+```text
+second: rejected
+first: done
+available: 1
+```
 
 ---
 
@@ -97,7 +156,7 @@ For precise semantics and guarantees, see:
 
 ---
 
-## Basic usage
+## Handling outcomes
 
 ```java
 import io.janbalangue.asyncbulkhead.Bulkhead;
@@ -162,7 +221,7 @@ Return a value immediately on rejection:
 CompletionStage<String> result =
     bulkhead.submitOrElseValue(
         this::someAsyncOperation,
-        "fallback"
+        () -> "fallback"
     );
 ```
 
@@ -222,4 +281,4 @@ Listener callbacks must be fast and non-blocking; they are intended for metrics,
 - APIs may change before 1.0; breaking changes will be documented
 - Rely only on documented behavior
 
-Pin versions and review the changelog when upgrading.
+Pin versions and review the [changelog](CHANGELOG.md) when upgrading.
