@@ -36,6 +36,7 @@ Migration:
 
 - The release workflow's version check now prints Maven's output when it fails.
 - CI now runs the release version lookup on every push.
+- The release workflow now declares the Central origins, because Maven 3.10 otherwise withholds the deploy credentials and the upload fails with a 401.
 
 ---
 

@@ -84,6 +84,8 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p ~/.m2
+          # Maven 3.10+ ties the id "central" to repo.maven.apache.org and sends these
+          # credentials to no other host unless the deploy origins are listed here.
           cat > ~/.m2/settings.xml <<'EOF'
           <settings>
             <servers>
@@ -91,6 +93,10 @@ jobs:
                 <id>central</id>
                 <username>${{ secrets.CENTRAL_USERNAME }}</username>
                 <password>${{ secrets.CENTRAL_PASSWORD }}</password>
+                <repositoryOrigins>
+                  <repositoryOrigin>https://ossrh-staging-api.central.sonatype.com</repositoryOrigin>
+                  <repositoryOrigin>https://central.sonatype.com</repositoryOrigin>
+                </repositoryOrigins>
               </server>
             </servers>
           </settings>
