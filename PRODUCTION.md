@@ -17,6 +17,7 @@ Used incorrectly, it can provide a false sense of safety.
 The bulkhead limits **admission**, not downstream resources.
 
 It should be placed **before** work that consumes scarce capacity, such as:
+
 - outbound HTTP calls
 - database queries
 - calls into other services
@@ -36,7 +37,6 @@ Under contention, submissions race for available capacity and may be rejected
 indefinitely.
 
 > Production systems must not rely on fairness or ordering guarantees.
-
 > *Starvation is possible under sustained contention and is considered acceptable behavior by design.*
 
 ---
@@ -46,12 +46,14 @@ indefinitely.
 The supplied task **must not start work until admitted**.
 
 Bad:
+
 ```java
 CompletionStage<Response> stage = client.callAsync(); // work already started
 bulkhead.submit(() -> stage);
 ```
 
 Good:
+
 ```java
 bulkhead.submit(() -> client.callAsync());
 ```
@@ -80,18 +82,20 @@ Failure to do so may result in immediate rejection and early capacity release to
 ## 3. Size conservatively and measure
 
 A bulkhead that allows too much concurrency can still cause:
-* timeouts
-* connection pool exhaustion
-* memory pressure
-* GC amplification
-* cascading failures
+
+- timeouts
+- connection pool exhaustion
+- memory pressure
+- GC amplification
+- cascading failures
 
 Start with a small limit.
 
 Observe:
-* latency distributions (p95 / p99)
-* rejection rates
-* downstream saturation signals
+
+- latency distributions (p95 / p99)
+- rejection rates
+- downstream saturation signals
 
 Increase limits only when you can explain why the downstream system can handle it.
 
@@ -99,9 +103,10 @@ Fan-out inside admitted operations can amplify effective concurrency.
 See section 4 for details.
 
 Be especially careful when:
-* composing async operations
-* using thenCompose chains
-* orchestrating parallel downstream requests
+
+- composing async operations
+- using thenCompose chains
+- orchestrating parallel downstream requests
 
 The bulkhead controls entry, not internal concurrency amplification.
 
@@ -116,21 +121,24 @@ Even with a bounded number of admitted operations, each admitted operation may
 spawn **multiple concurrent sub-operations**.
 
 Examples include:
-* parallel database queries
-* multiple outbound HTTP calls
-* async continuations using `thenCompose` / `thenApplyAsync`
-* orchestration or aggregation layers
+
+- parallel database queries
+- multiple outbound HTTP calls
+- async continuations using `thenCompose` / `thenApplyAsync`
+- orchestration or aggregation layers
 
 Effective concurrency can therefore become:
+
 ```text
 admitted_operations × fan_out
 ```
 
 This can still overwhelm downstream systems even when the bulkhead limit is low.
 Be especially careful when:
-* composing async calls
-* using fan-out patterns
-* orchestrating parallel downstream requests
+
+- composing async calls
+- using fan-out patterns
+- orchestrating parallel downstream requests
 
 The bulkhead limits admission, not internal concurrency.
 
@@ -138,26 +146,44 @@ It does not protect against amplification inside admitted operations.
 
 ## 5. Cancellation and timeouts
 
-Capacity is released only when the returned `CompletionStage`
+Capacity is released only when the `CompletionStage` produced by your supplier
 reaches a **terminal state**.
 
 If an operation never completes, capacity is never released.
 
-Cancelling the `CompletionStage` returned by the bulkhead releases capacity,
-but it does **not** cancel or interrupt the underlying work.
+Canceling the `CompletionStage` returned by the bulkhead ends the caller's wait.
+It does **not** release capacity, and it does **not** cancel or interrupt the underlying work.
 
 > *If this surprises you, this library is not what you want.*
+> Cancellation of the returned stage is not propagated into user code.
 
-> Cancellation is observed solely for permit accounting and is not propagated into user code.
+Abandoned work keeps its permit until it finishes. A hung operation therefore holds
+capacity after every caller has given up, and once `limit` operations have hung,
+every submission is rejected until they finish or the process restarts.
 
-Cancellation only affects admission accounting.
+A timeout on the returned stage has the same limit: it ends the wait, not the work.
+Bound the work itself, inside the supplier:
+
+```java
+bulkhead.submit(() -> client.callAsync(Duration.ofSeconds(2)));
+```
+
+To stop work when the caller cancels, wire that up explicitly:
+
+```java
+Cancellation.submitWithCancellation(bulkhead, () -> call.start(), () -> call.abort());
+```
+
+Once the work stops and its stage is terminal, the permit is released.
+
 Always combine bulkheads with downstream timeouts and cooperative cancellation
 to prevent abandoned work from continuing to consume resources.
 
 Always ensure:
-* downstream calls have timeouts
-* cancellation is propagated where possible
-* hung operations are detectable
+
+- downstream calls have timeouts
+- cancellation is propagated where possible
+- hung operations are detectable
 
 Bulkheads and timeouts are complementary.
 
@@ -165,30 +191,35 @@ Neither replaces the other.
 
 The bulkhead makes no attempt to infer intent from cancellation signals.
 
-If callers abandon requests but underlying work continues to run,
-load can accumulate outside the bulkhead’s visibility.
+The bulkhead only sees the stage your supplier returns. If that stage completes
+while real work continues (for example, `orTimeout` fails the stage but does not
+stop the call), capacity is released and load can accumulate outside the
+bulkhead’s visibility.
 
 ## 6. Remember this is per-process
 
 This bulkhead is not **distributed**.
 
 If global limits matter, enforce them elsewhere:
-* load balancers
-* rate limiters
-* upstream admission control
+
+- load balancers
+- rate limiters
+- upstream admission control
 
 ## 7. When not to use this bulkhead
 
 This library is likely a poor fit if you require:
-* queued or blocking admission
-* retries or fallback policies
-* adaptive or auto-tuned limits
-* framework-managed execution
+
+- queued or blocking admission
+- retries or fallback policies
+- adaptive or auto-tuned limits
+- framework-managed execution
 
 ## 8. Common misuse
 
-* Using it without downstream timeouts
-* Using it after work has started
-* Using snapshots for coordination (e.g., checking available permits outside submission)
+- Using it without downstream timeouts
+- Using it after work has started
+- Canceling the returned stage and expecting capacity back
+- Using snapshots for coordination (e.g., checking available permits outside submission)
 
 > Starvation is acceptable because this bulkhead makes no fairness or ordering claims by design.

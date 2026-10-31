@@ -11,11 +11,12 @@ import java.util.function.Supplier;
 /**
  * Opt-in cancellation wiring helpers.
  *
- * <p>This library's core {@link Bulkhead} semantics treat cancellation as a terminal outcome for
- * capacity accounting, but do <em>not</em> propagate cancellation to the underlying work.</p>
+ * <p>This library's core {@link Bulkhead} semantics hold a permit until the underlying work is
+ * terminal, and do <em>not</em> propagate cancellation of the returned stage to that work.</p>
  *
  * <p>This utility lets callers explicitly attach a best-effort cancellation hook to the
- * {@link CompletionStage} returned by the bulkhead.</p>
+ * {@link CompletionStage} returned by the bulkhead. Canceling the returned stage does not free
+ * capacity on its own: the permit is released once the hook has actually stopped the work.</p>
  *
  * <p><strong>Notes</strong>:</p>
  * <ul>

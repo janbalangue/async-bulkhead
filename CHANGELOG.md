@@ -1,5 +1,7 @@
 # Changelog
 
+<!-- markdownlint-configure-file { "MD024": { "siblings_only": true } } -->
+
 > *Production users should start at ≥ 0.1.7.*
 
 All notable, user-visible changes to runtime behavior and public APIs are documented in this file.
@@ -10,18 +12,38 @@ Until version `1.0.0`, all releases are **pre-stable** and may introduce breakin
 
 ## [Unreleased]
 
-_No user-visible changes._
+*No user-visible changes.*
+
+---
+
+## [0.6.0] – 2026-10-30
+
+### ⚠️ Breaking change
+
+The underlying work now owns the permit.
+
+Canceling the stage returned by `submit`, `submitOrElse`, or `submitOrElseValue` no longer releases capacity. The operation stays in-flight until the stage produced by its supplier reaches a terminal state.
+
+Previously, a canceled operation gave up its permit while its work kept running, so a new operation could be admitted and real concurrency could exceed the limit.
+
+Migration:
+
+- Work that should stop when the caller cancels needs an explicit hook, such as `Cancellation.submitWithCancellation(...)`. Otherwise it holds capacity until it finishes.
+- Canceling no longer frees capacity held by hung work. Put timeouts on the work itself, inside the supplier.
+- `BulkheadListener.onReleased` now fires when the work is terminal, not when the returned stage is canceled, and reports the work's outcome. `TerminalKind.CANCELLED` now means the stage produced by the supplier was canceled.
 
 ---
 
 ## [0.5.2] – 2026-02-01
 
 ### Build / Release
+
 - Fixed a YAML syntax error in the GitHub release workflow that prevented execution.
 - Quoted a step name containing a colon (Guardrail: …) to ensure valid YAML parsing.
 - No changes to runtime behavior, public APIs, semantics, or tests.
 
 ### Notes
+
 - This release exists solely to restore release pipeline correctness.
 - All runtime guarantees, cancellation semantics, and listener behavior remain identical to v0.5.1 and v0.5.0.
 - Users already on v0.5.x do not need to upgrade unless they rely on building or publishing from source.
@@ -31,11 +53,13 @@ _No user-visible changes._
 ## [0.5.1] - 2026-02-01
 
 ### Build / Publishing
+
 - Corrected Maven coordinates to publish under the intended groupId:
 `io.github.janbalangue` (replacing an incorrect `io.janbalangue`).
-   - Hardened release guardrails to prevent publishing with invalid coordinates and to fail fast before deployment.
+  - Hardened release guardrails to prevent publishing with invalid coordinates and to fail fast before deployment.
 
 ### Notes
+
 - This release exists to fix **publishing correctness**, not runtime behavior.
 - No changes to runtime semantics, public APIs, or tests beyond build/release safety checks.
 
@@ -44,17 +68,20 @@ _No user-visible changes._
 ## [0.5.0] - 2026-02-01
 
 ### Semantics
+
 - Formalized and hardened cancellation, listener, and permit-lifetime semantics.
 - Explicitly defined cooperative vs external cancellation behavior.
 - Clarified listener guarantees and undefined behavior boundaries.
 - No change to the core admission model: fail-fast, unordered, and non-blocking.
 
 ### Documentation
+
 - Fully aligned **README.md**, **DESIGN.md**, and **PRODUCTION.md** into a coherent, normative specification set.
 - DESIGN.md now serves as the authoritative semantic contract.
 - Expanded production guidance to document real-world failure modes and misuse.
 
 ### Build / CI
+
 - Hardened release workflow with:
   - strict tag ↔ POM version validation
   - explicit preflight `verify` before deployment
@@ -78,6 +105,7 @@ The first fully published and supported release series begins with 0.1.7.
 ## [0.4.1] - 2026-01
 
 ### Notes
+
 - **Not published** (Maven Central deployment was cancelled; version cannot be reused).
 - No runtime behavior, public API, or semantic changes from v0.4.0.
 - This version number exists only for bookkeeping and documentation continuity.
@@ -91,6 +119,7 @@ Public Java package namespace renamed
 `io.janbalangue.bulkhead.*` → `io.janbalangue.asyncbulkhead.*`
 
 This aligns the public API with:
+
 - the Maven artifact name (async-bulkhead)
 - repository structure
 - long-term package ownership clarity
@@ -100,21 +129,24 @@ Migration: update imports via a simple search/replace:
 `io.janbalangue.bulkhead` → `io.janbalangue.asyncbulkhead`
 
 ### Added
+
 - Overload handling helpers
--`Bulkhead.submitOrElse(...)`
-- `Bulkhead.submitOrElseValue(...)`
+  - `Bulkhead.submitOrElse(...)`
+  - `Bulkhead.submitOrElseValue(...)`
 
 Enables concise, explicit fallback behavior when capacity is exhausted.
 
 ### Rejection classification utilities
--`BulkheadRejectedException.unwrap(Throwable)`
--`BulkheadRejectedException.isRejected(Throwable)`
+
+- `BulkheadRejectedException.unwrap(Throwable)`
+- `BulkheadRejectedException.isRejected(Throwable)`
 
 Simplifies distinguishing overload rejection from execution failure in async pipelines.
 
 ### Guardrails & correctness
 
 Added namespace and API smoke tests to ensure:
+
 - correct public package exposure
 - protection against accidental namespace regression
 
@@ -146,6 +178,7 @@ This was corrected in subsequent releases, and later version numbers reflect act
 ## [0.3.1] - 2026-01-14
 
 ### Clarified
+
 - Cancellation is classified as `TerminalKind.CANCELLED` even when observed via wrapped exceptions (e.g. `CompletionException` wrapping a `CancellationException`).
 - This affects listener classification and observability only; capacity release semantics are unchanged.
 
@@ -154,6 +187,7 @@ This was corrected in subsequent releases, and later version numbers reflect act
 ## [0.3.0] - 2026-01-13
 
 ### Added
+
 - **Observability hooks** via `BulkheadListener`:
   - `onAdmitted()` — invoked after permit acquisition and before supplier invocation
   - `onRejected()` — invoked on fail-fast rejection
@@ -165,6 +199,7 @@ This was corrected in subsequent releases, and later version numbers reflect act
   - `inFlight()` — instantaneous in-flight count derived from `limit - available` (advisory snapshot).
 
 ### Changed
+
 - **Cancellation semantics are now explicit and user-visible**:
   - cancelling the `CompletionStage` returned by `submit(...)` produces a *cancelled* stage
   - cancellation releases capacity exactly once
@@ -174,11 +209,13 @@ This was corrected in subsequent releases, and later version numbers reflect act
   - listener failures cannot affect admission, rejection, or permit-release semantics.
 
 ### Fixed
+
 - Hardened permit accounting in edge cases:
   - ensured exactly-once permit release across completion, exceptional completion, and cancellation races
   - failures during terminal handler registration fail the submission and release capacity to prevent permit leaks.
 
 ### Notes
+
 - Invariant violations in internal permit accounting continue to be surfaced as `IllegalStateException`.
 
 > *These indicate internal bugs and should never be observed in correct usage.*
@@ -186,7 +223,9 @@ This was corrected in subsequent releases, and later version numbers reflect act
 ---
 
 ## [0.2.3] - 2026-01-05
+
 ### Documentation
+
 - Rewrote README.md to align strictly with DESIGN.md semantics.
 - Clarified the core invariant: in-flight means admitted until terminal.
 - Explicitly documented fail-fast, unordered admission and terminal-based capacity release.
@@ -199,9 +238,11 @@ This was corrected in subsequent releases, and later version numbers reflect act
 ## [0.2.2] - 2026-01-05
 
 ### Fixed
+
 - Release bookkeeping: publish missing changelog entries and align tagged release with published artifacts.
 
 ### Notes
+
 - No runtime or API changes from 0.2.1.
 
 ---
@@ -209,6 +250,7 @@ This was corrected in subsequent releases, and later version numbers reflect act
 ## [0.2.1] - 2026-01-05
 
 ### Documentation
+
 - Restored the missing changelog entry for v0.2.0.
 - No code, API, or behavioral changes.
 
@@ -217,23 +259,27 @@ This was corrected in subsequent releases, and later version numbers reflect act
 ## [0.2.0] - 2026-01-05
 
 ### Changed
+
 - Defined **cancellation** of the returned `CompletionStage` as a **terminal outcome** that releases capacity.
 - Defined **permit lifetime** strictly from successful admission until the returned `CompletionStage` reaches a terminal state (success, exceptional completion, or cancellation).
 - Guaranteed **exactly-once permit release** across all races between completion, exceptional completion, and cancellation.
 - Tightened admission semantics: capacity is acquired **only at the moment of submission**; there is no deferred, waiting, or speculative admission.
 
 ### Clarified
+
 - Formalized the core invariant: *in-flight means admitted until terminal*.
 - Clarified that the returned `CompletionStage` is the **sole authority** for permit lifetime.
 - Clarified that rejection is a **normal control signal** representing intentional load shedding under saturation.
 - Clarified that `BulkheadRejectedException` indicates **capacity exhausted and no work started**.
 
 ### Documentation
+
 - Significantly expanded and refined **DESIGN.md** to explicitly define semantics, invariants, races, cancellation behavior, and non-goals.
 - Pruned and refocused **README.md** to serve as a high-level entry point aligned with v0.2 semantics.
 - Added explicit **production guidance and failure modes** documentation.
 
 ### Compatibility
+
 - **Pre-1.0**: behavior relying on previously undefined or implicit cancellation behavior may observe changes.
 - No API surface changes; runtime behavior is now explicitly defined and test-backed.
 
@@ -242,12 +288,15 @@ This was corrected in subsequent releases, and later version numbers reflect act
 ## [0.1.7] - 2025-12-31
 
 ### Fixed
+
 - Maven Central publishing reliability and version alignment.
 
 ### Build
+
 - Release workflow stabilization; no runtime or semantic changes.
 
 ### Documentation
+
 - No user-visible documentation or API changes.
 
 ---
@@ -255,6 +304,7 @@ This was corrected in subsequent releases, and later version numbers reflect act
 ## [0.1.6] - 2025-12-31
 
 ### Notes
+
 - **Not published** (Central Portal deployment cancelled; version cannot be reused).
 
 ---
@@ -262,13 +312,16 @@ This was corrected in subsequent releases, and later version numbers reflect act
 ## [0.1.5] - 2025-12-31
 
 ### Notes
+
 - **Yanked / not published** (Maven Central deploy was cancelled; version cannot be reused).
 
 ### Fixed
+
 - Release workflow: corrected `GPG_PRIVATE_KEY` environment scoping so the key imports correctly in CI and signatures (`.asc`) are produced.
 - Release signing: ensured `.asc` signature artifacts are generated as part of the release build (via the `release` profile).
 
 ### Build
+
 - Minor CI/release reliability improvements around non-interactive GPG usage.
 
 ---
@@ -276,13 +329,16 @@ This was corrected in subsequent releases, and later version numbers reflect act
 ## [0.1.4] - 2025-12-30
 
 ### Fixed
+
 - Javadoc generation: corrected HTML issues and improved doc consistency.
 
 ### Changed
+
 - Release build: attach Javadoc JARs and sources JARs for Maven Central.
 - Signing: moved GPG signing into the `release` profile to avoid local/dev build friction.
 
 ### Documentation
+
 - Clarified overload/rejection semantics and usage examples.
 
 ---
@@ -290,20 +346,25 @@ This was corrected in subsequent releases, and later version numbers reflect act
 ## [0.1.3] – 2025-12-30
 
 ### Fixed
+
 - Corrected Maven Central publishing configuration (release deployment no longer depends on `distributionManagement`; no API or semantic changes).
 
 ### Build
+
 - Added a tag-gated release workflow suitable for CI publishing.
 
 ---
 
 ## [0.1.2] - 2025-12-30
+
 ### Fixed
+
 - Maven Central publishing readiness fixes (GPG signing, metadata, staging)
 - Parent / module POM alignment and groupId consistency
 - Test stability under high concurrency (permit release & rejection assertions)
 
 ### Documentation
+
 - Clarified async permit lifecycle and rejection semantics
 - Minor README and formatting cleanups
 
@@ -312,6 +373,7 @@ This was corrected in subsequent releases, and later version numbers reflect act
 ## [0.1.1] - 2025-12-30
 
 ### Fixed
+
 - Maven build and publishing metadata corrections
 - Minor test assertion compatibility fixes
 - Documentation formatting cleanup
@@ -321,6 +383,7 @@ This was corrected in subsequent releases, and later version numbers reflect act
 ## [0.1.0] — 2025-12-30
 
 ### Added
+
 - Async bulkhead with a fixed upper bound on **in-flight async operations**
 - Fail-fast rejection when capacity is exhausted (no waiting or queuing)
 - Explicit rejection signaling via `BulkheadRejectedException`

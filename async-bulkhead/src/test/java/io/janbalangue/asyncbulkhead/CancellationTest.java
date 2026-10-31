@@ -124,11 +124,33 @@ final class CancellationTest {
         assertFalse(underlying.isCancelled());
         assertFalse(underlying.isDone());
 
-        // Permit should be released even if canceller throws.
-        assertEquals(1, bulkhead.available());
-        assertEquals(0, bulkhead.inFlight());
+        // The work is still running, so it keeps its permit even if the hook throws.
+        assertEquals(0, bulkhead.available());
+        assertEquals(1, bulkhead.inFlight());
 
         underlying.complete(null);
+
+        assertEquals(1, bulkhead.available());
+        assertEquals(0, bulkhead.inFlight());
+    }
+
+    @Test
+    void cancellationHookThatStopsTheWorkReleasesThePermit() {
+        Bulkhead bulkhead = new Bulkhead(1);
+
+        CompletableFuture<Void> underlying = new CompletableFuture<>();
+
+        CompletionStage<Void> stage = Cancellation.submitWithCancellation(
+                bulkhead,
+                () -> underlying,
+                () -> underlying.cancel(true)
+        );
+
+        assertTrue(stage.toCompletableFuture().cancel(true));
+
+        assertTrue(underlying.isCancelled());
+        assertEquals(1, bulkhead.available());
+        assertEquals(0, bulkhead.inFlight());
     }
 
     @Test

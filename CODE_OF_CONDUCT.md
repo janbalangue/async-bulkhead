@@ -44,6 +44,7 @@ code, wiki edits, issues, and other contributions that are not aligned with this
 ## Scope
 
 This Code of Conduct applies within all project spaces, including:
+
 - GitHub issues and pull requests
 - Code reviews
 - Discussions
@@ -67,6 +68,7 @@ The project team is obligated to maintain confidentiality with regard to the rep
 ## Enforcement Guidelines
 
 Project maintainers may take any action they deem appropriate, including but not limited to:
+
 - Warning the offending party
 - Temporary or permanent ban from project participation
 - Removal of content that violates this Code of Conduct
@@ -76,4 +78,4 @@ Project maintainers may take any action they deem appropriate, including but not
 ## Attribution
 
 This Code of Conduct is adapted from the Contributor Covenant,
-version 2.1, available at https://www.contributor-covenant.org/version/2/1/code_of_conduct.html
+version 2.1, available at <https://www.contributor-covenant.org/version/2/1/code_of_conduct.html>

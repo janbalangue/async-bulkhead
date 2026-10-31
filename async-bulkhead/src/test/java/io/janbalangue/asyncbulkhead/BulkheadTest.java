@@ -118,7 +118,23 @@ final class BulkheadTest {
     }
 
     @Test
-    void releasesPermitOnCancellation() {
+    void releasesPermitWhenUnderlyingWorkIsCanceled() {
+        Bulkhead bulkhead = new Bulkhead(1);
+
+        CompletableFuture<Void> f = new CompletableFuture<>();
+
+        CompletionStage<Void> stage =
+                bulkhead.submit(() -> f);
+
+        assertTrue(f.cancel(true));
+
+        assertTrue(stage.toCompletableFuture().isCancelled());
+        assertEquals(1, bulkhead.available());
+        assertEquals(0, bulkhead.inFlight());
+    }
+
+    @Test
+    void cancelingReturnedStageDoesNotReleasePermit() {
         Bulkhead bulkhead = new Bulkhead(1);
 
         CompletableFuture<Void> f = new CompletableFuture<>();
@@ -128,7 +144,62 @@ final class BulkheadTest {
 
         assertTrue(stage.toCompletableFuture().cancel(true));
 
+        assertEquals(0, bulkhead.available(), "work is still running, so it keeps the permit");
+        assertEquals(1, bulkhead.inFlight());
+
+        f.complete(null);
+
         assertEquals(1, bulkhead.available());
+        assertEquals(0, bulkhead.inFlight());
+    }
+
+    @Test
+    void cancelingReturnedStageCannotExceedLimitWhileWorkIsRunning() {
+        Bulkhead bulkhead = new Bulkhead(1);
+
+        CompletableFuture<Void> running = new CompletableFuture<>();
+        bulkhead.submit(() -> running).toCompletableFuture().cancel(true);
+
+        AtomicBoolean invoked = new AtomicBoolean(false);
+
+        CompletionStage<Void> second =
+                bulkhead.submit(() -> {
+                    invoked.set(true);
+                    return CompletableFuture.completedFuture(null);
+                });
+
+        assertFalse(invoked.get(), "second operation must not start while the first is still running");
+
+        assertTrue(
+                BulkheadRejectedException.isRejected(
+                        assertThrows(ExecutionException.class,
+                                () -> second.toCompletableFuture().get())
+                )
+        );
+
+        running.complete(null);
+    }
+
+    @Test
+    void cancelingReturnedStageDoesNotReleasePermitForOrElseVariants() {
+        Bulkhead bulkhead = new Bulkhead(1);
+
+        CompletableFuture<String> first = new CompletableFuture<>();
+        bulkhead.submitOrElse(() -> first, () -> CompletableFuture.completedFuture("fallback"))
+                .toCompletableFuture()
+                .cancel(true);
+
+        assertEquals(1, bulkhead.inFlight());
+        first.complete("ok");
+        assertEquals(0, bulkhead.inFlight());
+
+        CompletableFuture<String> second = new CompletableFuture<>();
+        bulkhead.submitOrElseValue(() -> second, () -> "fallback")
+                .toCompletableFuture()
+                .cancel(true);
+
+        assertEquals(1, bulkhead.inFlight());
+        second.complete("ok");
         assertEquals(0, bulkhead.inFlight());
     }
 
@@ -291,7 +362,7 @@ final class BulkheadTest {
 
 
     @Test
-    void cancellationIsClassifiedAsCancelled() {
+    void workCancellationIsClassifiedAsCanceled() {
         AtomicInteger cancelled = new AtomicInteger();
 
         BulkheadListener listener = new BulkheadListener() {
@@ -303,12 +374,39 @@ final class BulkheadTest {
 
         Bulkhead bulkhead = new Bulkhead(1, listener);
 
-        CompletionStage<Void> stage =
-                bulkhead.submit(() -> new CompletableFuture<>());
+        CompletableFuture<Void> underlying = new CompletableFuture<>();
+        bulkhead.submit(() -> underlying);
 
-        stage.toCompletableFuture().cancel(true);
+        underlying.cancel(true);
 
         assertEquals(1, cancelled.get());
+    }
+
+    @Test
+    void listenerObservesWorkOutcomeAfterReturnedStageIsCanceled() {
+        AtomicReference<TerminalKind> kindRef = new AtomicReference<>();
+
+        BulkheadListener listener = new BulkheadListener() {
+            @Override
+            public void onReleased(TerminalKind kind, Throwable error) {
+                kindRef.set(kind);
+            }
+        };
+
+        Bulkhead bulkhead = new Bulkhead(1, listener);
+
+        CompletableFuture<String> underlying = new CompletableFuture<>();
+        CompletableFuture<String> returned =
+                bulkhead.submit(() -> underlying).toCompletableFuture();
+
+        returned.cancel(true);
+
+        assertNull(kindRef.get(), "nothing is released until the work is terminal");
+
+        underlying.complete("ok");
+
+        assertEquals(TerminalKind.SUCCESS, kindRef.get());
+        assertTrue(returned.isCancelled(), "the caller's cancellation must not be overwritten");
     }
 
     @Test
@@ -461,6 +559,33 @@ final class BulkheadTest {
         assertThrows(ExecutionException.class, () -> stage.toCompletableFuture().get());
 
         // Capacity must be released immediately to prevent permit leaks.
+        assertEquals(1, bulkhead.available());
+        assertEquals(0, bulkhead.inFlight());
+    }
+
+    @Test
+    void stageThatNotifiesThenThrowsReleasesPermitExactlyOnce() {
+        AtomicInteger released = new AtomicInteger();
+
+        BulkheadListener listener = new BulkheadListener() {
+            @Override public void onReleased(TerminalKind kind, Throwable error) { released.incrementAndGet(); }
+        };
+
+        Bulkhead bulkhead = new Bulkhead(1, listener);
+
+        CompletableFuture<String> misbehaving = new CompletableFuture<>() {
+            @Override
+            public CompletableFuture<String> whenComplete(BiConsumer<? super String, ? super Throwable> action) {
+                action.accept("ok", null);
+                throw new RuntimeException("boom: notified, then threw");
+            }
+        };
+
+        CompletionStage<String> stage = bulkhead.submit(() -> misbehaving);
+
+        assertThrows(ExecutionException.class, () -> stage.toCompletableFuture().get());
+
+        assertEquals(1, released.get());
         assertEquals(1, bulkhead.available());
         assertEquals(0, bulkhead.inFlight());
     }

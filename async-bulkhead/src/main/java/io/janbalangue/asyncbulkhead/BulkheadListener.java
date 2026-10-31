@@ -30,7 +30,10 @@ public interface BulkheadListener {
     /**
      * Called exactly once per admitted operation when the bulkhead releases its permit.
      *
-     * @param kind  terminal outcome observed by the bulkhead
+     * <p>The permit is held until the underlying work is terminal, so canceling the stage
+     * returned to the caller does not trigger this callback while that work is still running.</p>
+     *
+     * @param kind  terminal outcome of the underlying work observed by the bulkhead
      * @param error non-null iff {@code kind == TerminalKind.FAILURE}; otherwise null
      */
     default void onReleased(TerminalKind kind, Throwable error) {

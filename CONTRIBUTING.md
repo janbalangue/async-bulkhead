@@ -11,6 +11,7 @@ This project is intentionally **small, opinionated, and design-driven**. Contrib
 Before opening an issue or PR, read **[DESIGN.md](DESIGN.md)**.
 
 DESIGN.md defines:
+
 - core semantics and guarantees
 - overload behavior
 - non-goals for v0.x
@@ -22,19 +23,24 @@ Suggestions that conflict with documented non-goals will likely be declined.
 ## What contributions are welcome
 
 ### ✅ Bug reports
+
 Especially around:
+
 - race conditions
 - permit leaks
 - cancellation behavior
 - queue/timeout semantics
 
 Please include:
+
 - minimal reproduction
 - expected vs actual behavior
 - Java version (target is Java 17)
 
 ### ✅ Tests
+
 Tests that:
+
 - expose edge cases
 - prove semantics
 - prevent regressions
@@ -46,6 +52,7 @@ are highly valued.
 This project treats unit tests as **semantic contracts**, not just functional checks.
 
 In particular, tests may assert guarantees such as:
+
 - fail-fast rejection under saturation
 - supplier non-invocation when submissions are rejected
 - explicit rejection signaling via `BulkheadRejectedException`
@@ -54,8 +61,8 @@ In particular, tests may assert guarantees such as:
 Contributions that change public behavior must update tests and documentation
 (`DESIGN.md`, `CHANGELOG.md`) accordingly.
 
-
 ### ✅ Documentation improvements
+
 Clarifications to semantics, guarantees, failure modes, and tuning guidance are welcome.
 
 ---
@@ -63,6 +70,7 @@ Clarifications to semantics, guarantees, failure modes, and tuning guidance are 
 ## Out of scope (v0.x)
 
 To keep the core primitive small and correct, the following are out of scope initially:
+
 - Reactive framework integrations (Reactor, RxJava, etc.)
 - Priority or weighted scheduling
 - Adaptive or auto-tuned limits
@@ -88,6 +96,7 @@ PRs that change public semantics without prior discussion may be declined.
 ## API stability
 
 This project is **pre-1.0**:
+
 - APIs may change
 - semantics should remain explicit and test-backed
 - breaking changes will be documented in the changelog
@@ -101,11 +110,13 @@ This project is **pre-1.0**:
 Be respectful and constructive.
 
 We value feedback focused on:
+
 - correctness
 - failure modes
 - production behavior
 
 We de-prioritize:
+
 - naming debates
 - speculative future use cases
 - general-purpose abstractions

@@ -1,9 +1,10 @@
-# async-bulkhead — Design (v0.5.0)
+# async-bulkhead — Design (v0.6.0)
 
-This document describes the *design goals, invariants, and semantics* of **async-bulkhead** as of **v0.5.0**.  
+This document describes the *design goals, invariants, and semantics* of **async-bulkhead** as of **v0.6.0**.  
 It is intentionally precise and opinionated.
 
 If something is not specified here, it is either:
+
 - a non-goal, or
 - explicitly undefined.
 
@@ -82,9 +83,14 @@ Rejection is a **normal and intentional outcome**.
 
 ## 4. In-flight lifecycle and terminal states
 
-An operation is considered **in-flight** from the moment it is successfully admitted until the returned `CompletionStage` reaches a **terminal state**.
+An operation is considered **in-flight** from the moment it is successfully admitted until the `CompletionStage` produced by its supplier reaches a **terminal state**.
+
+**The underlying work owns the permit.** The stage returned to the caller is a view of that work: completing or canceling the view never changes capacity.
+
+The stage produced by the supplier is the bulkhead's only signal. Work that outlives that stage is not counted.
 
 Terminal states are:
+
 - successful completion
 - exceptional completion
 - cancellation
@@ -98,7 +104,7 @@ No other events (timeouts, user intent, or external signals) affect capacity.
 
 ## 5. Cancellation semantics
 
-Cancellation is treated as a **terminal outcome**, not a control mechanism.
+Cancellation is a **terminal outcome** only once it reaches the stage produced by the supplier. It is never a control mechanism.
 
 Two forms of cancellation are recognized:
 
@@ -108,9 +114,10 @@ Cooperative cancellation occurs when the returned `CompletionStage` is completed
 
 In this case:
 
-- the operation is considered terminal (distinct from success nor failure)
-- capacity is released
+- the returned stage completes, so the caller stops waiting
+- the operation stays **in-flight** and keeps its capacity
 - cancellation is **not propagated** to underlying work
+- capacity is released when the underlying work reaches a terminal state, and the outcome observed is the work's own
 
 ### External cancellation
 
@@ -120,9 +127,12 @@ External cancellation:
 
 - does not affect admission
 - does not immediately release capacity
-- only influences capacity once a terminal stage is observed
+- only influences capacity once the stage produced by the supplier is terminal
+
+If that stage ends in cancellation, the operation is terminal (distinct from success or failure), capacity is released, and the returned stage completes with cancellation.
 
 The bulkhead does not attempt to coordinate or enforce external cancellation.
+`Cancellation.submitWithCancellation` is an opt-in helper for wiring the two together.
 
 ---
 
@@ -137,6 +147,7 @@ Listener guarantees:
 - Release listeners are invoked exactly once per admitted operation
 
 Release notification occurs **after** the terminal state of the operation is observed and capacity has been released.
+Canceling the returned stage does not trigger release notification while the underlying work is still running.
 
 Listener expectations:
 

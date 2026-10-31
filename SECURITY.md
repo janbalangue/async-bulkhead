@@ -10,10 +10,12 @@ Security support will evolve as the project matures.
 If you believe you have found a security vulnerability, please report it privately.
 
 For now:
+
 - Open a GitHub issue and clearly mark it as a **security concern**, **or**
 - If the repository provides a maintainer contact method, use that for private disclosure.
 
 Please include:
+
 - a description of the vulnerability
 - steps to reproduce (if possible)
 - impact assessment

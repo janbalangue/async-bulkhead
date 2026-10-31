@@ -11,7 +11,7 @@ import java.util.function.Supplier;
  * <p>The bulkhead enforces a fixed upper bound on concurrently in-flight operations.
  * An operation is considered <em>in-flight</em> from the moment a submission is
  * successfully admitted (a permit is acquired) until the {@link CompletionStage}
- * returned by {@link #submit(Supplier)} reaches a terminal state.</p>
+ * produced by the supplied operation reaches a terminal state.</p>
  *
  * <p>A terminal state is defined as:</p>
  * <ul>
@@ -20,8 +20,9 @@ import java.util.function.Supplier;
  *   <li>cancellation</li>
  * </ul>
  *
- * <p>Permit release is observed strictly at terminal completion of the returned
- * {@code CompletionStage}, not at supplier invocation time.</p>
+ * <p>The underlying work owns the permit. Permit release is observed strictly at
+ * terminal completion of the {@code CompletionStage} produced by the operation, not at
+ * supplier invocation time and not when the stage returned to the caller completes.</p>
  *
  * <p><strong>Overload behavior</strong></p>
  *
@@ -42,10 +43,11 @@ import java.util.function.Supplier;
  *
  * <p>Invariant violations are surfaced as {@link IllegalStateException}.</p>
  *
- * <p><strong>Cancellation is not propagated.</strong> Cancelling the {@link CompletionStage}
+ * <p><strong>Cancellation is not propagated.</strong> Canceling the {@link CompletionStage}
  * returned by {@link #submit(Supplier)} does not attempt to cancel the supplied
- * operation or its returned stage. Cancellation only affects the returned stage
- * and permit accounting.</p>
+ * operation or its returned stage. Cancellation only affects the stage returned to
+ * the caller: the operation stays in-flight and keeps its permit until its own stage
+ * is terminal.</p>
  *
  * <p>This class is thread-safe.</p>
  *
@@ -180,18 +182,19 @@ public final class Bulkhead {
      * <p><strong>Outcomes</strong></p>
      * <ul>
      *   <li><b>Admitted:</b> a permit is acquired, then {@code operation} is invoked exactly once,
-     *       and the returned stage governs permit lifetime until terminal completion.</li>
+     *       and the stage it produces governs permit lifetime until terminal completion.</li>
      *   <li><b>Rejected:</b> if no permit is available at submission time, the operation is not invoked
      *       and a stage failed with {@link BulkheadRejectedException} is returned.</li>
      * </ul>
      *
      * <p><strong>Completion</strong></p>
-     * <p>A permit is released exactly once when the returned stage reaches a terminal state:
-     * success, exceptional completion, or cancellation.</p>
+     * <p>A permit is released exactly once when the stage produced by {@code operation} reaches a
+     * terminal state: success, exceptional completion, or cancellation.</p>
      *
      * <p><strong>Cancellation</strong></p>
-     * <p>Cancelling the stage returned by this method releases the permit (if not already released),
-     * but does not attempt to cancel or interrupt the underlying operation.</p>
+     * <p>Canceling the stage returned by this method completes it for the caller, but does not
+     * release the permit and does not attempt to cancel or interrupt the underlying operation.
+     * The permit is held until the stage produced by {@code operation} is terminal.</p>
      * <p>If explicit cancellation propagation to underlying work is required, see
      * {@link Cancellation} for an <em>opt-in</em>, best-effort helper.</p>
      *
@@ -293,7 +296,7 @@ public final class Bulkhead {
      * <p>This method is responsible for:</p>
      * <ul>
      *   <li>invoking {@code operation} exactly once</li>
-     *   <li>releasing the permit exactly once at terminal completion of the returned stage</li>
+     *   <li>releasing the permit exactly once at terminal completion of the stage produced by {@code operation}</li>
      *   <li>mapping terminal outcomes to {@link TerminalKind} for {@link BulkheadListener#onReleased(TerminalKind, Throwable)}</li>
      * </ul>
      */
@@ -310,31 +313,10 @@ public final class Bulkhead {
             return failed(t); // return failed stage, don't throw
         }
 
+        // Guards against stages that notify twice, or notify and then throw from whenComplete.
         final AtomicBoolean released = new AtomicBoolean(false);
 
-        final CompletableFuture<T> out = new CompletableFuture<>() {
-            @Override
-            public boolean cancel(boolean mayInterruptIfRunning) {
-                if (released.compareAndSet(false, true)) {
-                    Throwable releaseError = null;
-                    try {
-                        releaseChecked();
-                    } catch (Throwable t) {
-                        releaseError = t;
-                    }
-
-                    if (releaseError != null) {
-                        Throwable finalError = releaseError;
-                        safe(() -> listener.onReleased(TerminalKind.FAILURE, finalError));
-                        this.completeExceptionally(releaseError);
-                        return false;
-                    }
-
-                    safe(() -> listener.onReleased(TerminalKind.CANCELLED, null));
-                }
-                return super.cancel(mayInterruptIfRunning);
-            }
-        };
+        final CompletableFuture<T> out = new CompletableFuture<>();
 
         try {
             stage.whenComplete((r, e) -> {

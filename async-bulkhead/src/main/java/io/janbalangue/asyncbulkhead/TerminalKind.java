@@ -22,10 +22,11 @@ public enum TerminalKind {
     FAILURE,
 
     /**
-     * The operation was cancelled.
+     * The stage produced by the operation was canceled.
      *
-     * <p>Cancellation is treated as terminal for permit accounting
-     * but is not propagated to underlying work.</p>
+     * <p>Canceling the stage returned to the caller is not this outcome. That
+     * cancellation is not propagated to underlying work, so the permit is held and
+     * the outcome reported is whatever the underlying work eventually does.</p>
      */
     CANCELLED
 }
