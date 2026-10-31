@@ -35,6 +35,17 @@ jobs:
           set -euo pipefail
           mvn -B -q verify
 
+      # Same lookup as the release workflow, so a problem with it fails here
+      # instead of after a tag has been pushed.
+      - name: Check release version lookup
+        shell: bash
+        run: |
+          set -euo pipefail
+          mvn -B -q -Dexec.executable=echo \
+            -Dexec.args='${project.version}' \
+            --non-recursive \
+            org.codehaus.mojo:exec-maven-plugin:3.1.0:exec
+
       - name: Upload JaCoCo report
         if: always()
         uses: actions/upload-artifact@v4

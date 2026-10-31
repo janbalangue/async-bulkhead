@@ -45,10 +45,15 @@ jobs:
           echo "Tag version: $TAG_VERSION"
           echo "Releasing commit: $GITHUB_SHA"
 
-          POM_VERSION="$(mvn -q -Dexec.executable=echo \
+          # mvn -q prints errors to stdout, so show the captured output on failure.
+          if ! POM_VERSION="$(mvn -B -q -Dexec.executable=echo \
             -Dexec.args='${project.version}' \
             --non-recursive \
-            org.codehaus.mojo:exec-maven-plugin:3.1.0:exec)"
+            org.codehaus.mojo:exec-maven-plugin:3.1.0:exec)"; then
+            echo "❌ Could not read the POM version:"
+            echo "$POM_VERSION"
+            exit 1
+          fi
 
           echo "POM version: $POM_VERSION"
 
@@ -148,7 +153,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mvn -q -Dexec.executable=echo -Dexec.args='${project.groupId}:${project.artifactId}:${project.version}' \
+          mvn -B -q -Dexec.executable=echo -Dexec.args='${project.groupId}:${project.artifactId}:${project.version}' \
             --non-recursive org.codehaus.mojo:exec-maven-plugin:3.1.0:exec
 
       - name: Inspect built artifacts

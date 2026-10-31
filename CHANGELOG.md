@@ -32,6 +32,11 @@ Migration:
 - Canceling no longer frees capacity held by hung work. Put timeouts on the work itself, inside the supplier.
 - `BulkheadListener.onReleased` now fires when the work is terminal, not when the returned stage is canceled, and reports the work's outcome. `TerminalKind.CANCELLED` now means the stage produced by the supplier was canceled.
 
+### Build / CI
+
+- The release workflow's version check now prints Maven's output when it fails.
+- CI now runs the release version lookup on every push.
+
 ---
 
 ## [0.5.2] – 2026-02-01
