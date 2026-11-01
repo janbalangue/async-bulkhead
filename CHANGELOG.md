@@ -14,7 +14,9 @@ Versions 0.1.0–0.1.6, 0.4.1, 0.5.0, and 0.5.1 are listed for history but are n
 
 ## [Unreleased]
 
-*No user-visible changes.*
+### Build / CI
+
+- The release workflow now waits up to 4 hours for a version to reach Maven Central, not 60 minutes, because 0.6.1 took about three hours.
 
 ---
 
