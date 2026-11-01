@@ -204,3 +204,54 @@ jobs:
           curl -sS -X POST \
             -H "Authorization: Bearer $AUTH" \
             "https://ossrh-staging-api.central.sonatype.com/manual/upload/defaultRepository/${CENTRAL_NAMESPACE}?publishing_type=automatic"
+
+  # A separate job so that only this one can write to the repo, and so that a
+  # failure here can be rerun without touching Central.
+  github-release:
+    needs: release
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # The finalize step doesn't check Central's response, so a green publish job
+      # doesn't prove the version got there. If this times out, rerun this job once
+      # the version is available.
+      - name: Wait for Maven Central
+        timeout-minutes: 60
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          VERSION="${GITHUB_REF_NAME#v}"
+          POM_URL="https://repo1.maven.org/maven2/io/github/janbalangue/async-bulkhead/${VERSION}/async-bulkhead-${VERSION}.pom"
+
+          until curl -fsS -o /dev/null "$POM_URL"; do
+            echo "Waiting for ${VERSION} on Maven Central"
+            sleep 60
+          done
+
+          echo "✅ ${VERSION} is on Maven Central"
+
+      - name: Create GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
+            echo "✅ Release $GITHUB_REF_NAME already exists"
+            exit 0
+          fi
+
+          bash .github/scripts/release-notes.sh "${GITHUB_REF_NAME#v}" > release-notes.md
+
+          gh release create "$GITHUB_REF_NAME" \
+            --verify-tag \
+            --title "$GITHUB_REF_NAME" \
+            --notes-file release-notes.md

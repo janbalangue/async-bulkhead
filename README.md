@@ -21,14 +21,14 @@ Maven:
 <dependency>
   <groupId>io.github.janbalangue</groupId>
   <artifactId>async-bulkhead</artifactId>
-  <version>0.6.0</version>
+  <version>0.6.1</version>
 </dependency>
 ```
 
 Gradle:
 
 ```kotlin
-implementation("io.github.janbalangue:async-bulkhead:0.6.0")
+implementation("io.github.janbalangue:async-bulkhead:0.6.1")
 ```
 
 ## Quick start

@@ -46,6 +46,25 @@ jobs:
             --non-recursive \
             org.codehaus.mojo:exec-maven-plugin:3.1.0:exec
 
+      # Same notes lookup as the release workflow, so a release commit with no
+      # changelog section fails here instead of after it has been published.
+      - name: Check release notes lookup
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          VERSION="$(mvn -B -q -Dexec.executable=echo \
+            -Dexec.args='${project.version}' \
+            --non-recursive \
+            org.codehaus.mojo:exec-maven-plugin:3.1.0:exec)"
+
+          if [[ "$VERSION" == *"-SNAPSHOT" ]]; then
+            echo "Skipping $VERSION, which can't be released"
+            exit 0
+          fi
+
+          bash .github/scripts/release-notes.sh "$VERSION"
+
       - name: Upload JaCoCo report
         if: always()
         uses: actions/upload-artifact@v4
@@ -66,3 +85,29 @@ jobs:
           min-coverage-overall: 0
           min-coverage-changed-files: 0
 
+  # Releases are built on Java 17, so also run the tests on the newer LTS
+  # versions people will use them on.
+  compatibility:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        java: [ "21", "25" ]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+          cache: maven
+
+      - name: Build and test
+        shell: bash
+        run: |
+          set -euo pipefail
+          mvn -B -q verify

@@ -7,12 +7,39 @@
 All notable, user-visible changes to runtime behavior and public APIs are documented in this file.
 This changelog documents only **user-visible changes** to runtime behavior, public APIs, and operational guarantees; internal refactors and implementation details are omitted unless they affect those guarantees.
 Until version `1.0.0`, all releases are **pre-stable** and may introduce breaking changes. Any such changes will be explicitly documented.
+Versions 0.1.7–0.4.0 listed here were published as `io.github.janbalangue:bulkhead-core`, not `async-bulkhead`.
+Versions 0.1.0–0.1.6, 0.4.1, 0.5.0, and 0.5.1 are listed for history but are not on Maven Central, so they can't be installed.
 
 ---
 
 ## [Unreleased]
 
 *No user-visible changes.*
+
+---
+
+## [0.6.1] – 2026-10-31
+
+### Build / CI
+
+- CI now runs the tests on Java 21 and 25 as well as Java 17.
+- CI now fails if the POM's version has no section in this changelog, unless it's a `-SNAPSHOT`.
+- The release workflow now creates a GitHub Release from this changelog once the version reaches Maven Central.
+
+### Tests
+
+- Added stress tests that race many submitters against one bulkhead and check that it admits exactly its limit, never exceeds it, and gets every permit back.
+
+### Documentation
+
+- The README now has install and quick start sections.
+- Fixed the README's `submitOrElseValue` example, which didn't compile.
+- The changelog now says which versions were published as `bulkhead-core` and which aren't on Maven Central.
+
+### Notes
+
+- No changes to runtime behavior, public APIs, or semantics.
+- Users on v0.6.0 do not need to upgrade.
 
 ---
 
