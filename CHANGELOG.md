@@ -2,7 +2,7 @@
 
 <!-- markdownlint-configure-file { "MD024": { "siblings_only": true } } -->
 
-> *Production users should start at ≥ 0.1.7.*
+> *Production users should start at ≥ 0.6.0.*
 
 All notable, user-visible changes to runtime behavior and public APIs are documented in this file.
 This changelog documents only **user-visible changes** to runtime behavior, public APIs, and operational guarantees; internal refactors and implementation details are omitted unless they affect those guarantees.
